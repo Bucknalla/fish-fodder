@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { weatherKind, weatherIcon, KIND_LABELS } from '../src/weather.js';
-import { createWeather, localDate } from '../src/node/weather.js';
+import { createWeather, localDate } from '../src/forecast.js';
 import { renderFrame, PRESETS } from '../src/render.js';
 import { measureText } from '../src/text.js';
 
@@ -132,14 +132,21 @@ test('the header fits weather on every panel without touching the margins', () =
   }
 });
 
-test('weather changes the header and nothing else', () => {
-  const plain = renderFrame(AT).bitmap;
-  const wet = renderFrame(AT, { weather: { kind: 'rain', high: 14, low: 8 } }).bitmap;
-  let changedBelow = 0;
-  let changedAbove = 0;
-  for (let i = 0; i < plain.data.length; i++) {
-    if (plain.data[i] !== wet.data[i]) (Math.floor(i / plain.width) < 80 ? changedAbove++ : changedBelow++);
-  }
-  assert.ok(changedAbove > 100);
-  assert.equal(changedBelow, 0);
+test('the header keeps its size on typical days and shrinks for wide forecasts', () => {
+  // The rule under the header is the first row that's mostly ink.
+  const ruleRow = (weather) => {
+    const { bitmap: b } = renderFrame(AT, { weather });
+    for (let y = 0; y < b.height; y++) {
+      let ink = 0;
+      for (let x = 0; x < b.width; x++) ink += b.get(x, y);
+      if (ink > b.width * 0.8) return y;
+    }
+    return -1;
+  };
+  const mild = ruleRow({ kind: 'rain', high: 14, low: 8 });
+  assert.ok(mild > 0);
+  assert.equal(ruleRow({ kind: 'sun', high: 28, low: 19 }), mild);
+  assert.equal(ruleRow({ kind: 'cloud', high: 3, low: 1 }), mild);
+  assert.ok(ruleRow({ kind: 'snow', high: -12, low: -23 }) < mild);
+  assert.ok(ruleRow(null) > mild); // without weather there's room for bigger text
 });

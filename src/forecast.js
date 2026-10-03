@@ -1,8 +1,9 @@
 // Today's forecast from Open-Meteo (free, no API key), for wherever the
 // device is. Location comes from, in order: --coords, --location (a place
 // name, looked up with Open-Meteo's geocoder), or the network's IP address.
+// Plain fetch(), so the simulator uses it in the browser too.
 
-import { weatherKind } from '../weather.js';
+import { weatherKind } from './weather.js';
 
 const IP_URL = 'https://ipinfo.io/json';
 const GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';

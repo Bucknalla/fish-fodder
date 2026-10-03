@@ -99,17 +99,29 @@ export function renderFrame(date, options = {}) {
   const tiny = H < 200;
   const inner = W - 2 * m;
 
-  // --- header: time on the left, date on the right, same font and size.
-  // The size is fixed per panel from the widest possible time and date, so it
-  // doesn't change from day to day.
+  // --- header: time on the left, date on the right and today's weather
+  // between them, all in one font at one size. The size is fixed per panel
+  // from the widest possible time and date (and a typical "88°/88°" forecast),
+  // so it doesn't change from day to day; an unusually wide forecast, like a
+  // cold snap's "-12°/-23°", shrinks the header to fit.
   const { time, suffix } = formatTime(date, opts);
   const font = 'duplex';
-  const gap = 1.2; // between time and date, in cap heights
+  const gap = 1.2; // between header items, in cap heights
+  const iconK = 1.5; // weather icon square, in cap heights
+  const iconGap = 0.25;
   const suffixScale = 0.45;
   const suffixW = suffix ? suffixScale * (0.3 + Math.max(measureText('am', { size: 1 }), measureText('pm', { size: 1 }))) : 0;
-  const widest = measureText(opts.clock === '12h' ? '12:00' : '00:00', { font, size: 1 }) + suffixW + gap + widestDate();
-  // 75% of the largest size that fits, so the header doesn't crowd the fish.
-  const headSize = 0.75 * Math.min(u * (tiny ? 0.2 : 0.13), inner / widest);
+  const timeAndDate = measureText(opts.clock === '12h' ? '12:00' : '00:00', { font, size: 1 }) + suffixW + gap + widestDate();
+  let temps = null;
+  let weatherW = 0;
+  if (opts.weather) {
+    temps = `${Math.round(opts.weather.high)}°/${Math.round(opts.weather.low)}°`;
+    const tempsW = Math.max(measureText(temps, { font, size: 1 }), measureText('88°/88°', { font, size: 1 }));
+    weatherW = iconK + iconGap + tempsW + gap;
+  }
+  // 75% of the largest size that fits time and date, so the header doesn't
+  // crowd the fish, or smaller if that's what it takes to fit the weather too.
+  const headSize = Math.min(0.75 * Math.min(u * (tiny ? 0.2 : 0.13), inner / timeAndDate), inner / (timeAndDate + weatherW));
   const headStroke = Math.max(1.5, headSize / 14);
   const headY = m + headSize;
   bmp.stroke(textPolylines(time, { x: m, y: headY, font, size: headSize }), headStroke);
@@ -123,28 +135,14 @@ export function renderFrame(date, options = {}) {
   const dateW = measureText(dateText, { font, size: headSize });
   bmp.stroke(textPolylines(dateText, { x: W - m - dateW, y: headY, font, size: headSize }), headStroke);
 
-  // Today's weather, centred between them: an icon and the high/low, or just
-  // the icon where the numbers would be too small to read.
-  if (opts.weather) {
-    const { kind, high, low } = opts.weather;
-    const temps = `${Math.round(high)}°/${Math.round(low)}°`;
-    const iconK = 1.6; // icon square, in cap heights
-    const iconGap = 0.25;
-    const from = timeRight + headSize * 0.8;
-    const room = W - m - dateW - headSize * 0.8 - from;
-    const fullW = iconK + iconGap + measureText(temps, { font, size: 1 });
-    let ws = Math.min(headSize * 0.75, room / fullW);
-    let showTemps = ws >= Math.max(9, headSize * 0.5);
-    if (!showTemps) ws = Math.min(headSize * 0.75, room / iconK);
-    if (ws >= 6) {
-      const x = from + (room - ws * (showTemps ? fullW : iconK)) / 2;
-      const iconSize = ws * iconK;
-      // Centre the icon on the text's cap height.
-      bmp.stroke(weatherIcon(kind, { x, y: headY - ws / 2 - iconSize / 2, size: iconSize }), Math.max(1, ws / 13));
-      if (showTemps) {
-        bmp.stroke(textPolylines(temps, { x: x + ws * (iconK + iconGap), y: headY, font, size: ws }), Math.max(1.2, ws / 14));
-      }
-    }
+  // The weather: an icon and the high/low, centred between time and date.
+  if (temps) {
+    const iconSize = headSize * iconK;
+    const w = iconSize + headSize * iconGap + measureText(temps, { font, size: headSize });
+    const x = (timeRight + W - m - dateW - w) / 2;
+    // Centre the icon on the text's cap height.
+    bmp.stroke(weatherIcon(opts.weather.kind, { x, y: headY - headSize / 2 - iconSize / 2, size: iconSize }), Math.max(1, headSize / 13));
+    bmp.stroke(textPolylines(temps, { x: x + iconSize + headSize * iconGap, y: headY, font, size: headSize }), headStroke);
   }
 
   // The rule under the header; a rare catch gets a badge hanging from it.

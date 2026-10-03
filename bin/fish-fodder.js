@@ -9,7 +9,7 @@ import { generateCatch } from '../src/names.js';
 import { encodePNG } from '../src/node/png.js';
 import { runClock } from '../src/node/clock.js';
 import { startServer } from '../src/node/server.js';
-import { createWeather } from '../src/node/weather.js';
+import { createWeather } from '../src/forecast.js';
 import { KIND_LABELS } from '../src/weather.js';
 
 const HELP = `fish-fodder — a new fish with a silly name every hour

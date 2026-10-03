@@ -4,6 +4,7 @@
 import { renderFrame, PRESETS } from '../src/render.js';
 import { hourKey, startOfHour, catchesFrom } from '../src/schedule.js';
 import { KIND_LABELS, SAMPLES, toFahrenheit } from '../src/weather.js';
+import { createWeather, localDate } from '../src/forecast.js';
 
 const HOUR = 3600_000;
 const FF_INTERVAL = 4000;
@@ -13,7 +14,7 @@ const $ = (id) => document.getElementById(id);
 const canvas = $('panel');
 const ctx = canvas.getContext('2d');
 
-const SAVED = ['preset', 'portrait', 'clock', 'update', 'salt', 'weather', 'units'];
+const SAVED = ['preset', 'portrait', 'clock', 'update', 'salt', 'weather', 'place', 'units'];
 const state = {
   offset: 0, // simulated time = real time + offset
   ff: false,
@@ -22,13 +23,15 @@ const state = {
   clock: '24h',
   update: 'minute',
   salt: '',
-  weather: 'live', // 'live', 'none', or a sample kind from SAMPLES
+  weather: 'forecast', // 'forecast', 'none', or a sample kind from SAMPLES
+  place: 'London, GB', // where the simulated frame is
   units: 'c',
 };
 try {
   const saved = JSON.parse(localStorage.getItem('fish-fodder') ?? '{}');
   for (const k of SAVED) if (k in saved) state[k] = saved[k];
   if (!PRESETS[state.preset]) state.preset = 'waveshare-7in5';
+  if (state.weather === 'live') state.weather = 'forecast'; // older saved setting
 } catch {}
 function save() {
   try {
@@ -45,23 +48,55 @@ function size() {
 const settingsKey = (weather) => JSON.stringify([state.preset, state.portrait, state.clock, state.update, state.salt, weather]);
 
 // ---------------------------------------------------------------------------
-// Weather. Served by `fish-fodder serve`, the simulator shows the live
-// forecast the frame would; anywhere else it offers sample weather.
+// Weather. The simulator looks up the forecast for a location you choose,
+// the same way the frame does for its own. Where the page can't reach the
+// internet (the published demo), it offers sample weather instead.
 
-let liveAvailable = false;
-const live = new Map(); // local date → { weather, place } | 'pending'
+let forecastAvailable = true;
+let networkFailed = false;
+const simFetch = (url, opts) => fetch(url, opts).catch((err) => {
+  networkFailed = true;
+  throw err;
+});
 
-const localDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const services = new Map(); // place → { svc, message }
+const tried = new Set(); // place|date pairs already fetched (or fetching)
+const pending = new Set();
 
-function fetchLive(now) {
-  const date = localDate(now);
-  if (live.has(date)) return;
-  live.set(date, 'pending');
-  fetch(`/weather.json?at=${encodeURIComponent(now.toISOString())}`)
-    .then((r) => (r.ok ? r.json() : null))
-    .then((j) => live.set(date, j ?? { weather: null, place: null }))
-    .catch(() => live.set(date, { weather: null, place: null }))
-    .finally(() => tick());
+// "51.45,-2.59" → coordinates, anything else → a place name.
+function placeOptions(text) {
+  const m = text.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+  return m ? { coords: [Number(m[1]), Number(m[2])] } : { location: text };
+}
+
+// One forecast client per place, so going back to a place reuses its forecast.
+function placeEntry() {
+  if (!state.place) return null;
+  if (!services.has(state.place)) {
+    const entry = { message: '' };
+    entry.svc = createWeather({ ...placeOptions(state.place), fetch: simFetch, log: (msg) => { entry.message = msg.replace(/^weather: /, ''); } });
+    services.set(state.place, entry);
+  }
+  return services.get(state.place);
+}
+const service = () => placeEntry()?.svc ?? null;
+
+// Fetch the forecast for `now`'s date once; resolves when it has settled.
+function requestForecast(now) {
+  const s = service();
+  const key = `${state.place}|${localDate(now)}`;
+  if (!s || tried.has(key)) return Promise.resolve();
+  tried.add(key);
+  pending.add(key);
+  return s.forecast(now).then(() => {
+    pending.delete(key);
+    if (networkFailed && !s.cached(now)) {
+      forecastAvailable = false;
+      weatherOptions();
+      syncButtons();
+    }
+    tick();
+  });
 }
 
 function convert(c, from, to) {
@@ -69,20 +104,20 @@ function convert(c, from, to) {
   return to === 'f' ? toFahrenheit(c) : ((c - 32) * 5) / 9;
 }
 
-// The weather choice in effect: live needs a server, else fall back to a sample.
-const weatherMode = () => (state.weather === 'live' && !liveAvailable ? 'partly' : state.weather);
+// The weather choice in effect: no forecast without the internet, so a sample.
+const weatherMode = () => (state.weather === 'forecast' && !forecastAvailable ? 'partly' : state.weather);
 
 // The weather to draw now, or null.
 function weatherNow(now) {
   const mode = weatherMode();
   if (mode === 'none') return null;
-  if (mode === 'live') {
-    const hit = live.get(localDate(now));
-    if (!hit) fetchLive(now);
-    const w = hit && hit !== 'pending' ? hit.weather : null;
-    if (!w) return null;
-    const from = w.units === 'fahrenheit' ? 'f' : 'c';
-    return { kind: w.kind, high: convert(w.high, from, state.units), low: convert(w.low, from, state.units) };
+  if (mode === 'forecast') {
+    const w = service()?.cached(now);
+    if (!w) {
+      requestForecast(now);
+      return null;
+    }
+    return { kind: w.kind, high: convert(w.high, 'c', state.units), low: convert(w.low, 'c', state.units) };
   }
   const kind = SAMPLES[mode] ? mode : 'partly';
   const [high, low] = SAMPLES[kind];
@@ -92,11 +127,12 @@ function weatherNow(now) {
 function weatherStatus(now) {
   const mode = weatherMode();
   if (mode === 'none') return '';
-  if (mode !== 'live') return `Sample weather: ${KIND_LABELS[mode] ?? KIND_LABELS.partly}`;
-  const hit = live.get(localDate(now));
-  if (!hit || hit === 'pending') return 'Fetching forecast…';
-  if (!hit.weather) return 'Forecast unavailable';
-  return `Forecast for ${hit.place ?? 'this location'}`;
+  if (mode !== 'forecast') return `Sample weather: ${KIND_LABELS[mode] ?? KIND_LABELS.partly}`;
+  if (!state.place) return 'Enter a location for the forecast';
+  const entry = placeEntry();
+  if (entry.svc.cached(now)) return `Forecast for ${entry.svc.place()?.name ?? state.place}`;
+  if (pending.has(`${state.place}|${localDate(now)}`)) return 'Fetching forecast…';
+  return entry.message ? `No forecast: ${entry.message}` : 'No forecast for this day';
 }
 
 // ---------------------------------------------------------------------------
@@ -170,7 +206,7 @@ function frameKey(d) {
   return state.update === 'hour' ? hourKey(d) : `${hourKey(d)}:${d.getMinutes()}`;
 }
 
-let ready = false; // set once we know whether live weather is available
+let ready = false; // set once the first forecast is in (or has timed out)
 
 async function tick() {
   if (!ready) return;
@@ -286,6 +322,8 @@ function syncButtons() {
   $('p-preset').value = state.preset;
   $('f-salt').value = state.salt;
   $('w-mode').value = weatherMode();
+  $('w-place').value = state.place;
+  $('w-place').hidden = weatherMode() !== 'forecast';
 }
 
 $('p-preset').append(...Object.entries(PRESETS).map(([k, p]) => new Option(p.label, k)));
@@ -305,6 +343,7 @@ $('c-12').addEventListener('click', () => setting('clock', '12h'));
 $('u-min').addEventListener('click', () => setting('update', 'minute'));
 $('u-hour').addEventListener('click', () => setting('update', 'hour'));
 $('w-mode').addEventListener('change', (e) => setting('weather', e.target.value));
+$('w-place').addEventListener('change', (e) => setting('place', e.target.value.trim()));
 $('w-c').addEventListener('click', () => setting('units', 'c'));
 $('w-f').addEventListener('click', () => setting('units', 'f'));
 $('f-salt').addEventListener('change', (e) => setting('salt', e.target.value.trim()));
@@ -312,25 +351,21 @@ $('controls').addEventListener('submit', (e) => e.preventDefault());
 
 function weatherOptions() {
   const opts = Object.keys(SAMPLES).map((k) => new Option(`Sample: ${KIND_LABELS[k]}`, k));
-  if (liveAvailable) opts.unshift(new Option('Live forecast', 'live'));
+  if (forecastAvailable) opts.unshift(new Option('Forecast for a location', 'forecast'));
   opts.push(new Option('No weather', 'none'));
   $('w-mode').replaceChildren(...opts);
-  $('w-hint').textContent = liveAvailable
-    ? "The frame shows today's forecast for its location. Samples show the other icons."
-    : "The frame shows today's forecast for its location. This copy of the simulator can't fetch it, so it shows sample weather.";
+  $('w-hint').textContent = forecastAvailable
+    ? "The frame shows today's forecast for where it is. Type any place to pretend it's there, or pick a sample."
+    : "The frame shows today's forecast for where it is. This page can't fetch forecasts, so it shows samples. Run npm run sim for real ones.";
 }
 
-// Is there a fish-fodder server behind us to ask for the forecast?
-fetch('/weather.json', { signal: AbortSignal.timeout(2000) })
-  .then((r) => (r.ok ? r.json() : null))
-  .then((j) => { liveAvailable = !!j && 'weather' in j; })
-  .catch(() => {})
-  .finally(() => {
-    ready = true;
-    weatherOptions();
-    syncButtons();
-    tick();
-  });
+// Hold the first draw (briefly) for the forecast, to avoid two refreshes.
+weatherOptions();
+const firstForecast = weatherMode() === 'forecast' ? requestForecast(simNow()) : Promise.resolve();
+Promise.race([firstForecast, wait(4000)]).finally(() => {
+  ready = true;
+  tick();
+});
 
 syncButtons();
 fitCanvas(size());

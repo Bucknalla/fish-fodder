@@ -95,7 +95,7 @@ shows the hour the fish arrived (`14:00`).
   a command. `{mode}` is `full` or `partial`.
 - `fish-fodder serve` also serves `/frame.png` (with optional `?width=`, `?height=`,
   `?clock=12h`, `?salt=`, `?at=`, `?weather=none`), for ESP32-style frames that
-  fetch an image.
+  fetch an image. It takes the same weather options as `run`.
 
 ### Weather
 
@@ -117,9 +117,13 @@ node bin/fish-fodder.js run --driver inky --coords 51.45,-2.59
 If the forecast can't be fetched, the frame keeps the last one for that day or
 leaves the weather out, and the reason is logged. `--no-weather` turns it off.
 
-In the simulator, choose *Live forecast* to see what the frame would show
-(this needs `npm run sim`), or a sample to see each icon. The single-file
-simulator only has the samples.
+In the simulator, type any place (or `lat,lon`) under Weather to see the
+forecast a frame there would show, or pick a sample to see each icon. Pages
+that can't reach the internet, like a published copy, only have the samples.
+
+The time, weather and date share one size. It's set per panel so it stays
+put from day to day; a forecast wider than usual (say `-12°/-23°`) shrinks the
+header that day so everything fits.
 
 ### Options
 
@@ -145,7 +149,8 @@ simulator only has the samples.
 - `src/render.js` lays out the frame and rasterises it straight to 1 bit, with
   lettering in the Hershey stroke fonts to match fishdraw's plotter style.
 - `src/weather.js` maps forecast codes to kinds of sky and draws their icons;
-  `src/node/weather.js` finds the location and fetches the forecast.
+  `src/forecast.js` finds the location and fetches the forecast (the device
+  and the simulator both use it).
 - `src/node/` holds the PNG encoder, clock loop, display backends and server.
   `hardware/epd_bridge.py` pushes frames to the panel.
 
