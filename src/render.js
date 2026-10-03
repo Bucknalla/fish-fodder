@@ -106,7 +106,8 @@ export function renderFrame(date, options = {}) {
   const suffixScale = 0.45;
   const suffixW = suffix ? suffixScale * (0.3 + Math.max(measureText('am', { size: 1 }), measureText('pm', { size: 1 }))) : 0;
   const widest = measureText(opts.clock === '12h' ? '12:00' : '00:00', { font, size: 1 }) + suffixW + gap + widestDate();
-  const headSize = Math.min(u * (tiny ? 0.2 : 0.13), inner / widest);
+  // 75% of the largest size that fits, so the header doesn't crowd the fish.
+  const headSize = 0.75 * Math.min(u * (tiny ? 0.2 : 0.13), inner / widest);
   const headStroke = Math.max(1.5, headSize / 14);
   const headY = m + headSize;
   bmp.stroke(textPolylines(time, { x: m, y: headY, font, size: headSize }), headStroke);
