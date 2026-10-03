@@ -1,0 +1,25 @@
+# systemd unit for running fish-fodder on a Raspberry Pi.
+#
+#   sudo cp hardware/fish-fodder.service /etc/systemd/system/
+#   sudo systemctl edit --full fish-fodder   # adjust User, paths and --driver
+#   sudo systemctl enable --now fish-fodder
+#   journalctl -u fish-fodder -f             # watch the catches roll in
+
+[Unit]
+Description=fish-fodder e-ink fish clock
+After=time-sync.target
+Wants=time-sync.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/fish-fodder
+# Use the venv python if that's where waveshare_epd / inky are installed.
+ExecStart=/usr/bin/node bin/fish-fodder.js run --driver waveshare:epd7in5_V2 --python /home/pi/fish-fodder/.venv/bin/python
+# Only signal node; it puts the panel to sleep and then stops the bridge.
+KillMode=mixed
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

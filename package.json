@@ -1,0 +1,17 @@
+{
+  "name": "fish-fodder",
+  "version": "0.1.0",
+  "description": "An e-ink clock that catches a new, sillily-named fish every hour",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "fish-fodder": "bin/fish-fodder.js" },
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "sim": "node bin/fish-fodder.js serve",
+    "build": "node scripts/build-sim.js",
+    "test": "node --test test/*.test.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

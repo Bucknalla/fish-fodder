@@ -1,0 +1,5 @@
+node_modules/
+dist/
+frame.png
+__pycache__/
+.venv/
