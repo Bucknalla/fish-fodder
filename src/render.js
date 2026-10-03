@@ -165,7 +165,7 @@ export function renderFrame(date, options = {}) {
   // --- footer: italic name (like fishdraw's own labels) and a field note.
   let bottom = H - m;
   let nameBaseline = null;
-  let noteSize = Math.max(7, u * 0.036);
+  let noteSize = Math.max(7, u * 0.029);
   noteSize = Math.min(noteSize, noteSize * inner / measureText(fishCatch.note, { size: noteSize }));
   if (!tiny && noteSize >= 7) {
     const w = measureText(fishCatch.note, { size: noteSize });
@@ -175,7 +175,7 @@ export function renderFrame(date, options = {}) {
   }
 
   const italic = 0.3;
-  let nameSize = u * (tiny ? 0.09 : 0.062);
+  let nameSize = u * (tiny ? 0.075 : 0.05);
   // Italic letters lean right by ~italic*cap height; leave room for it.
   nameSize = Math.min(nameSize, inner / (measureText(fishCatch.name, { size: 1 }) + italic));
   const nameW = measureText(fishCatch.name, { size: nameSize });
@@ -186,7 +186,7 @@ export function renderFrame(date, options = {}) {
   );
 
   // --- the fish, fitted into whatever's left
-  const boxBottom = bottom - nameSize * 1.05 - m * 0.6;
+  const boxBottom = bottom - nameSize * 1.05 - m * 0.45;
   const { polylines, bbox } = fishFor(fishCatch.name);
   const scale = Math.min(inner / bbox.w, (boxBottom - boxTop) / bbox.h);
   const ox = m + (inner - bbox.w * scale) / 2 - bbox.x * scale;
