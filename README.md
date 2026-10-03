@@ -10,7 +10,7 @@ draws the same fish. About one hour in twenty-five lands a rare catch.
 
 ```
 ┌──────────────────────────────────────────────┐
-│ 14:37                     Saturday 3 October │
+│ 14:37                              Sat 3 Oct │
 │ ──────────────────────────────────────────── │
 │                   (a fish)                   │
 │                                              │

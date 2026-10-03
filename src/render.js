@@ -27,6 +27,9 @@ export const DEFAULTS = {
   salt: '',
 };
 
+// Descenders (g, p, y) reach DESCENT × cap height below the baseline.
+const DESCENT = 0.36;
+
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
   'August', 'September', 'October', 'November', 'December'];
@@ -38,12 +41,23 @@ export function formatTime(date, { clock = '24h', precision = 'minute' } = {}) {
   return { time: `${String(h).padStart(2, '0')}:${mm}`, suffix: '' };
 }
 
-function formatDates(date) {
-  const d = date.getDate();
-  return [
-    `${DAYS[date.getDay()]} ${d} ${MONTHS[date.getMonth()]}`,
-    `${DAYS[date.getDay()].slice(0, 3)} ${d} ${MONTHS[date.getMonth()].slice(0, 3)}`,
-  ];
+function shortDate(date) {
+  return `${DAYS[date.getDay()].slice(0, 3)} ${date.getDate()} ${MONTHS[date.getMonth()].slice(0, 3)}`;
+}
+
+// Width of the widest short date, per unit of cap height.
+let widestDateW = null;
+function widestDate() {
+  if (widestDateW === null) {
+    widestDateW = 0;
+    for (const d of DAYS) {
+      for (const mo of MONTHS) {
+        const t = `${d.slice(0, 3)} 30 ${mo.slice(0, 3)}`;
+        widestDateW = Math.max(widestDateW, measureText(t, { font: 'duplex', size: 1 }));
+      }
+    }
+  }
+  return widestDateW;
 }
 
 // fishdraw takes ~0.5s per fish, and the fish only changes hourly, so keep
@@ -83,42 +97,44 @@ export function renderFrame(date, options = {}) {
   const tiny = H < 200;
   const inner = W - 2 * m;
 
-  // --- header: big time on the left, date (and rare badge) on the right
+  // --- header: time on the left, date on the right, same font and size.
+  // The size is fixed per panel from the widest possible time and date, so it
+  // doesn't change from day to day.
   const { time, suffix } = formatTime(date, opts);
-  const timeSize = u * (tiny ? 0.2 : 0.13);
-  const timeY = m + timeSize;
-  bmp.stroke(textPolylines(time, { x: m, y: timeY, font: 'duplex', size: timeSize }), Math.max(1.5, timeSize / 14));
-  let headerRight = m + measureText(time, { font: 'duplex', size: timeSize });
+  const font = 'duplex';
+  const gap = 1.2; // between time and date, in cap heights
+  const suffixScale = 0.45;
+  const suffixW = suffix ? suffixScale * (0.3 + Math.max(measureText('am', { size: 1 }), measureText('pm', { size: 1 }))) : 0;
+  const widest = measureText(opts.clock === '12h' ? '12:00' : '00:00', { font, size: 1 }) + suffixW + gap + widestDate();
+  const headSize = Math.min(u * (tiny ? 0.2 : 0.13), inner / widest);
+  const headStroke = Math.max(1.5, headSize / 14);
+  const headY = m + headSize;
+  bmp.stroke(textPolylines(time, { x: m, y: headY, font, size: headSize }), headStroke);
   if (suffix) {
-    const s = timeSize * 0.4;
-    bmp.stroke(textPolylines(suffix, { x: headerRight + s * 0.3, y: timeY, size: s }), Math.max(1, s / 10));
-    headerRight += s * 0.3 + measureText(suffix, { size: s });
+    const s = headSize * suffixScale;
+    const x = m + measureText(time, { font, size: headSize }) + s * 0.3;
+    bmp.stroke(textPolylines(suffix, { x, y: headY, size: s }), Math.max(1, s / 10));
   }
+  const dateText = shortDate(date);
+  const dateW = measureText(dateText, { font, size: headSize });
+  bmp.stroke(textPolylines(dateText, { x: W - m - dateW, y: headY, font, size: headSize }), headStroke);
 
-  const dateSize = Math.max(7, u * 0.042);
-  const room = W - m - headerRight - m;
-  const dateText = formatDates(date).find((t) => measureText(t, { size: dateSize }) <= room);
-  if (dateText) {
-    const w = measureText(dateText, { size: dateSize });
-    bmp.stroke(textPolylines(dateText, { x: W - m - w, y: timeY, size: dateSize }), Math.max(1, dateSize / 12));
-  }
+  // The rule under the header; a rare catch gets a badge hanging from it.
+  const ruleY = headY + headSize * DESCENT + m * 0.4;
+  bmp.stroke([[[m, ruleY], [W - m, ruleY]]], Math.max(1, u / 300));
+  const boxTop = ruleY + m * 0.6;
   if (fishCatch.rare && !tiny) {
-    const s = dateSize * 0.8;
+    const s = Math.max(7, u * 0.034);
     const label = 'RARE CATCH!';
     const w = measureText(label, { size: s, tracking: 3 });
-    const pad = s * 0.45;
-    const x = W - m - w - pad;
-    const y = m + s + pad;
-    bmp.stroke(textPolylines(label, { x, y, size: s, tracking: 3 }), Math.max(1, s / 10));
-    bmp.stroke([[[x - pad, m], [x + w + pad, m], [x + w + pad, y + pad], [x - pad, y + pad], [x - pad, m]]], Math.max(1, s / 10));
+    const pad = s * 0.5;
+    const x0 = W - m - w - 2 * pad;
+    const y1 = ruleY + s + 2 * pad;
+    bmp.stroke(textPolylines(label, { x: x0 + pad, y: y1 - pad, size: s, tracking: 3 }), Math.max(1, s / 10));
+    bmp.stroke([[[x0, ruleY], [x0, y1], [W - m, y1], [W - m, ruleY]]], Math.max(1, s / 10));
   }
 
-  const ruleY = timeY + m * 0.7;
-  bmp.stroke([[[m, ruleY], [W - m, ruleY]]], Math.max(1, u / 300));
-
   // --- footer: italic name (like fishdraw's own labels) and a field note.
-  // Descenders reach DESCENT × size below the baseline.
-  const DESCENT = 0.36;
   let bottom = H - m;
   let nameBaseline = null;
   let noteSize = Math.max(7, u * 0.036);
@@ -142,7 +158,6 @@ export function renderFrame(date, options = {}) {
   );
 
   // --- the fish, fitted into whatever's left
-  const boxTop = ruleY + m * 0.6;
   const boxBottom = bottom - nameSize * 1.05 - m * 0.6;
   const { polylines, bbox } = fishFor(fishCatch.name);
   const scale = Math.min(inner / bbox.w, (boxBottom - boxTop) / bbox.h);
