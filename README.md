@@ -3,7 +3,7 @@
 Randomly generate fish with silly names for an e-ink display.
 
 An e-ink clock that catches a new fish every hour. Each hour gets a silly
-name (*Lesser Spotted Disco Halibut*, *Captain Brenda Barnaclewick*,
+name (*Lesser Spotted Disco Haddock*, *Captain Brenda Barnaclewick*,
 *Wobblichthys bewilderus*), and the name is the seed for
 [fishdraw](https://github.com/LingDong-/fishdraw), so the same name always
 draws the same fish. About one hour in twenty-five lands a rare catch.

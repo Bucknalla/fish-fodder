@@ -23,6 +23,16 @@ test('names are printable, fit the label, and vary', () => {
   assert.ok(rare > 100 && rare < 400, `${rare} rare catches in 5000`);
 });
 
+test('names only promise fish that fishdraw can draw', () => {
+  // fishdraw draws ordinary finned fish: no eels, rays, flatfish, puffers or
+  // shellfish. Whole words only, so surnames like Flounderbottom are fine.
+  const wrong = /\b(eel|ray|squid|octopus|prawn|shrimp|krill|crab|lobster|halibut|flounder|plaice|sole|turbot|pufferfish|blobfish|monkfish|seahorse|jellyfish|starfish)s?\b/i;
+  for (let i = 0; i < 20000; i++) {
+    const { name } = generateCatch(`seed ${i}`);
+    assert.doesNotMatch(name, wrong, name);
+  }
+});
+
 test('a catch is keyed by the local hour', () => {
   const a = catchFor(new Date(2026, 9, 3, 14, 1));
   const b = catchFor(new Date(2026, 9, 3, 14, 59));

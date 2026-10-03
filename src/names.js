@@ -36,7 +36,7 @@ const SPECIES = [
 ];
 
 // ---------------------------------------------------------------------------
-// Field-guide common names: "Lesser Spotted Disco Halibut"
+// Field-guide common names: "Lesser Spotted Disco Haddock"
 
 const QUALIFIERS = [
   'Lesser', 'Greater', 'Common', 'Northern', 'Southern', 'Lesser Spotted',
@@ -54,12 +54,14 @@ const ADJECTIVES = [
   'Tiny', 'Enormous', 'Pompous', 'Gormless', 'Cheeky',
 ];
 
+// fishdraw draws ordinary finned fish, so no eels, rays, flatfish or other
+// creatures whose shape the drawing would contradict.
 const FISH = [
-  'Haddock', 'Halibut', 'Mackerel', 'Sardine', 'Flounder', 'Herring',
-  'Guppy', 'Trout', 'Catfish', 'Pufferfish', 'Anchovy', 'Grouper',
-  'Sturgeon', 'Turbot', 'Pollock', 'Kipper', 'Minnow', 'Goldfish',
-  'Barracuda', 'Blobfish', 'Wrasse', 'Carp', 'Cod', 'Pike', 'Perch',
-  'Bream', 'Tench', 'Gudgeon', 'Pilchard', 'Snapper', 'Monkfish', 'Plaice',
+  'Haddock', 'Mackerel', 'Sardine', 'Herring', 'Guppy', 'Trout', 'Catfish',
+  'Anchovy', 'Grouper', 'Sturgeon', 'Pollock', 'Kipper', 'Minnow',
+  'Goldfish', 'Barracuda', 'Wrasse', 'Carp', 'Cod', 'Pike', 'Perch',
+  'Bream', 'Tench', 'Gudgeon', 'Pilchard', 'Snapper', 'Salmon', 'Tuna',
+  'Bass', 'Roach', 'Chub', 'Grayling', 'Bluegill',
 ];
 
 const COMPOUND_FRONT = [
@@ -67,18 +69,18 @@ const COMPOUND_FRONT = [
   'Kettle', 'Waffle', 'Teacup', 'Sausage', 'Pickle', 'Pudding', 'Crumpet',
   'Banjo', 'Cardigan', 'Doughnut', 'Sofa', 'Wheelbarrow', 'Muffin',
   'Moustache', 'Spatula', 'Teapot', 'Slipper', 'Custard', 'Trumpet',
-  'Umbrella', 'Jelly', 'Tuba', 'Bucket',
+  'Umbrella', 'Trifle', 'Tuba', 'Bucket',
 ];
 
 const COMPOUND_BACK = [
-  'fin', 'gill', 'fish', 'cod', 'ray', 'eel', 'mouth', 'belly', 'snapper',
+  'fin', 'gill', 'fish', 'cod', 'mouth', 'belly', 'snapper',
   'tail', 'nose', 'jaw', 'scale', 'sprat', 'pike', 'perch', 'bream',
 ];
 
 const BODY_PARTS = ['nosed', 'bellied', 'finned', 'faced', 'headed', 'tailed', 'lipped', 'eyed'];
 
 // ---------------------------------------------------------------------------
-// Characters: "Captain Brenda Barnaclewick", "Keith the Halibut"
+// Characters: "Captain Brenda Barnaclewick", "Keith the Haddock"
 
 const TITLES = [
   'Sir', 'Lady', 'Captain', 'Professor', 'Doctor', 'Lord', 'Baroness',
@@ -98,7 +100,7 @@ const FIRST_NAMES = [
 
 const SURNAME_FRONT = [
   'Bubble', 'Flounder', 'Wobble', 'Gill', 'Fin', 'Splash', 'Scale',
-  'Kipper', 'Haddock', 'Sprat', 'Puddle', 'Blub', 'Squid', 'Brine',
+  'Kipper', 'Haddock', 'Sprat', 'Puddle', 'Blub', 'Pond', 'Brine',
   'Plankton', 'Ripple', 'Barnacle', 'Pickle', 'Soggy', 'Trout', 'Wiggle',
   'Splosh', 'Guppy', 'Seaweed', 'Bilge', 'Pebble',
 ];
@@ -115,10 +117,10 @@ const PARTICLES = ['von', 'de la', 'Mc', "O'", 'van der'];
 // Legendary catches. Rare: roughly one hour in twenty-five.
 
 const LEGENDS = [
-  'The Codfather', 'Cod Almighty', 'Bass Lightyear', 'Krill Bill',
-  'Carpe Diem', 'Sole Survivor', 'Fishy McFishface', 'Tuna Turner',
-  'Squid Pro Quo', 'Eel of Fortune', 'Prawn of the Dead', 'Hake Expectations',
-  'Plaice Invaders', 'Shrimply the Best', 'Codzilla', 'Johann Sebastian Bass',
+  'The Codfather', 'Cod Almighty', 'Bass Lightyear', 'Reel of Fortune',
+  'Carpe Diem', 'Trout of Office', 'Fishy McFishface', 'Tuna Turner',
+  'Perch Perfect', 'Carp Tunnel', 'Pike and Prejudice', 'Hake Expectations',
+  'Hake It Till You Make It', 'Bass Instinct', 'Codzilla', 'Johann Sebastian Bass',
   'Salmon Chanted Evening', 'The Great Gill', 'Pike Speed', 'Fin Diesel',
   'Oh My Cod', 'The Bream Team', 'Finding Emo', 'Holy Mackerel',
 ];
