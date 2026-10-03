@@ -1,0 +1,97 @@
+menu "Fish Fodder"
+
+    config FF_WIFI_SSID
+        string "Wi-Fi network"
+        default ""
+
+    config FF_WIFI_PASSWORD
+        string "Wi-Fi password"
+        default ""
+
+    choice FF_UPDATES
+        prompt "Updates"
+        default FF_UPDATE_MINUTE
+        help
+            Every minute keeps the board awake (USB power) and updates the clock
+            with a partial refresh, with a full refresh when the new fish
+            arrives on the hour. Hourly shows HH:00 and the new fish, then
+            deep-sleeps until the next hour, which suits a battery.
+
+        config FF_UPDATE_MINUTE
+            bool "Every minute"
+        config FF_UPDATE_HOURLY
+            bool "Hourly, deep sleep in between"
+    endchoice
+
+    config FF_LATITUDE
+        string "Latitude (empty: estimate from the IP address)"
+        default ""
+        help
+            For the weather forecast, e.g. 51.4552. Leave both empty to estimate
+            the location from the IP address.
+
+    config FF_LONGITUDE
+        string "Longitude"
+        default ""
+
+    config FF_TIMEZONE
+        string "Time zone (POSIX TZ; empty: from the forecast)"
+        default ""
+        help
+            For example GMT0BST,M3.5.0/1,M10.5.0 for the UK. Empty uses the UTC
+            offset the forecast reports for its location, which follows
+            daylight saving changes within the hour.
+
+    config FF_FAHRENHEIT
+        bool "Temperatures in Fahrenheit"
+        default n
+
+    config FF_CLOCK_12H
+        bool "12-hour clock"
+        default n
+
+    config FF_ROTATE
+        int "Rotation (0, 90, 180 or 270 degrees clockwise)"
+        default 0
+        help
+            90 or 270 for a frame mounted portrait.
+
+    config FF_FRAME_ID
+        string "Frame ID (gives this frame its own fish)"
+        default ""
+
+    menu "Panel pins"
+        config FF_PIN_SCK
+            int "SCK (CLK)"
+            range 0 48
+            default 12
+        config FF_PIN_MOSI
+            int "MOSI (DIN)"
+            range 0 48
+            default 11
+        config FF_PIN_CS
+            int "CS"
+            range 0 48
+            default 10
+        config FF_PIN_DC
+            int "DC"
+            range 0 48
+            default 9
+        config FF_PIN_RST
+            int "RST"
+            range 0 48
+            default 8
+        config FF_PIN_BUSY
+            int "BUSY"
+            range 0 48
+            default 7
+        config FF_PIN_PWR
+            int "PWR (-1 if the board has none)"
+            range -1 48
+            default 6
+            help
+                Newer Waveshare driver boards switch the panel's power with a
+                PWR pin, which is held high. Set -1 if yours has none.
+    endmenu
+
+endmenu

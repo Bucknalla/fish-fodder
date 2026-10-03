@@ -135,6 +135,67 @@ header that day so everything fits.
 | `--salt kitchen` | A different fish schedule, so two frames don't match. |
 | `--location`, `--coords`, `--units f`, `--no-weather` | See [Weather](#weather). |
 
+## On an ESP32
+
+`esp32/` is an ESP-IDF app that runs the clock on an ESP32-S3 by itself: no
+Raspberry Pi, no server. It joins Wi-Fi, sets its clock over NTP, fetches
+today's forecast and draws each frame with the C port (below).
+
+You need:
+
+- an ESP32-S3 board with 8 MB of octal PSRAM: modules marked N8R8 or N16R8,
+  such as the ESP32-S3-DevKitC-1-N8R8. Drawing a fish takes up to 4.2 MB, so
+  boards with 2 MB of PSRAM (or none) won't do;
+- a Waveshare 7.5" e-Paper V2 (800 × 480, black and white) with its driver
+  board;
+- [ESP-IDF](https://docs.espressif.com/projects/esp-idf/) 5.3 or later.
+
+Wiring (the defaults; change them in menuconfig):
+
+| Panel | ESP32-S3 |
+| ----- | -------- |
+| VCC   | 3V3      |
+| GND   | GND      |
+| DIN   | GPIO 11  |
+| CLK   | GPIO 12  |
+| CS    | GPIO 10  |
+| DC    | GPIO 9   |
+| RST   | GPIO 8   |
+| BUSY  | GPIO 7   |
+| PWR   | GPIO 6 (newer driver boards only) |
+
+```sh
+cd esp32
+idf.py set-target esp32s3
+idf.py menuconfig      # Fish Fodder: Wi-Fi, updates, location, clock...
+idf.py flash monitor
+```
+
+There are two ways to run it:
+
+- **Every minute** (the default) stays awake on USB power. The clock updates
+  with a partial refresh each minute, and the panel does a full refresh when
+  the new fish arrives on the hour.
+- **Hourly** wakes on the hour, shows `HH:00` and the new fish, then
+  deep-sleeps, for a frame on a battery.
+
+The location comes from menuconfig, or is estimated from the IP address. The
+time zone comes from the forecast, so the clock follows daylight saving with
+no setup; set a POSIX `TZ` in menuconfig to override it.
+
+At power-on it draws a test fish and logs whether it matches the JavaScript
+bit for bit, and how long it took:
+
+```
+I (2345) fish-fodder: self-check: "Biggus fishus" matches the JavaScript exactly (… ms, … KB working memory)
+```
+
+Status: the app compiles against ESP-IDF 5.4's headers, and the renderer
+draws the same fish and frames as the JavaScript on an emulated Xtensa CPU.
+It hasn't run on a real board yet. The panel driver follows Waveshare's own
+command sequences. The partial refresh is the part most likely to need
+adjusting.
+
 ## In C, for microcontrollers
 
 `c/` is a port of the whole clock face to C, with no dependencies beyond the
@@ -178,17 +239,13 @@ if (ff_render(&now, &opts, &frame, NULL) == 0) {
 
 On a desktop a fish takes about 30 ms to draw (100 ms at worst) and a whole
 frame about 40 ms. Drawing a fish needs 1.3 MB of working memory typically and
-4.2 MB at most, so on an ESP32 use an ESP32-S3 with PSRAM. Point the allocator
-at PSRAM:
+4.2 MB at most, and up to about 32 KB of stack. `fishdraw_set_allocator()`
+says where the working memory comes from (PSRAM, on an ESP32). The last fish
+is cached, so redrawing the clock within the hour skips fishdraw.
 
-```c
-fishdraw_set_allocator(psram_alloc, free);  // e.g. heap_caps_malloc(n, MALLOC_CAP_SPIRAM)
-```
-
-Give the task a 32 KB stack. The ESP32-S3's FPU is single precision only, so
-doubles run in software. Expect seconds per fish rather than milliseconds,
-which is fine for a fish that changes hourly. This hasn't been measured on
-hardware yet. The last fish is cached, so per-minute redraws skip fishdraw.
+`c/xtensa/run.sh` runs the renderer on an emulated Xtensa CPU (QEMU), the
+ESP32's architecture, with doubles done in software the way the ESP32-S3 does
+them, and checks every fish and frame against the JavaScript.
 
 ## How it works
 
@@ -221,6 +278,8 @@ npm test
   Huang, MIT licence (`src/vendor/LICENSE-fishdraw`).
 - Maths: fdlibm, via [V8](https://v8.dev)'s `ieee754.cc` (BSD licence,
   `src/vendor/LICENSE-v8`, `c/LICENSE-v8`); originally Sun Microsystems.
+- E-paper commands: the ESP32 panel driver follows Waveshare's
+  [e-Paper](https://github.com/waveshareteam/e-Paper) driver (MIT licence).
 - Weather: [Open-Meteo](https://open-meteo.com) (CC BY 4.0); location estimate
   from [ipinfo.io](https://ipinfo.io).
 - Lettering: the Hershey Fonts were originally created by Dr. A. V. Hershey

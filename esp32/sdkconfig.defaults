@@ -1,0 +1,13 @@
+# An ESP32-S3 with 8 MB of octal PSRAM (modules marked N8R8 or N16R8).
+# Drawing a fish takes up to 4.2 MB, so PSRAM is required. For a board with
+# quad PSRAM, change the mode in menuconfig (Component config > ESP PSRAM).
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+# The clock task draws fish on the second core for seconds at a time.
+# CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1 is not set
