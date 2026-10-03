@@ -119,9 +119,11 @@ export function renderFrame(date, options = {}) {
     const tempsW = Math.max(measureText(temps, { font, size: 1 }), measureText('88°/88°', { font, size: 1 }));
     weatherW = iconK + iconGap + tempsW + gap;
   }
-  // 75% of the largest size that fits time and date, so the header doesn't
-  // crowd the fish, or smaller if that's what it takes to fit the weather too.
-  const headSize = Math.min(0.75 * Math.min(u * (tiny ? 0.2 : 0.13), inner / timeAndDate), inner / (timeAndDate + weatherW));
+  // 75% of the largest size that fits time and date, or smaller if that's what
+  // it takes to fit the weather too; then HEADER_SCALE of that, so the header
+  // stays modest and the fish gets the room.
+  const HEADER_SCALE = 0.8;
+  const headSize = HEADER_SCALE * Math.min(0.75 * Math.min(u * (tiny ? 0.2 : 0.13), inner / timeAndDate), inner / (timeAndDate + weatherW));
   const headStroke = Math.max(1.5, headSize / 14);
   const headY = m + headSize;
   bmp.stroke(textPolylines(time, { x: m, y: headY, font, size: headSize }), headStroke);
@@ -146,9 +148,9 @@ export function renderFrame(date, options = {}) {
   }
 
   // The rule under the header; a rare catch gets a badge hanging from it.
-  const ruleY = headY + headSize * DESCENT + m * 0.4;
+  const ruleY = headY + headSize * DESCENT + m * 0.3;
   bmp.stroke([[[m, ruleY], [W - m, ruleY]]], Math.max(1, u / 300));
-  const boxTop = ruleY + m * 0.6;
+  const boxTop = ruleY + m * 0.45;
   if (fishCatch.rare && !tiny) {
     const s = Math.max(7, u * 0.034);
     const label = 'RARE CATCH!';
