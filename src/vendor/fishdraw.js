@@ -11,8 +11,14 @@
 //     the same seed would draw a different fish depending on what was drawn
 //     before it. Resetting makes every call match `node fishdraw.js --seed`.
 //   * declared `lip1s` in fish_head(), which upstream leaks as an implicit
-//     global (a ReferenceError in strict-mode ES modules).
+//     global (a ReferenceError in strict-mode ES modules);
+//   * Math.sin, cos, atan2, acos, pow, exp and hypot, and the ** operator,
+//     are replaced by the bundled fdlibm.js (fd.*), so every JavaScript
+//     engine, and the C port, computes exactly the same numbers. They return
+//     what Node's Math does.
 // Everything else is byte-for-byte upstream.
+
+import * as fd from './fdlibm.js';
 
 
 let jsr = 0x5EED;
@@ -28,7 +34,7 @@ var PERLIN_YWRAPB = 4; var PERLIN_YWRAP = 1<<PERLIN_YWRAPB;
 var PERLIN_ZWRAPB = 8; var PERLIN_ZWRAP = 1<<PERLIN_ZWRAPB;
 var PERLIN_SIZE = 4095;
 var perlin_octaves = 4;var perlin_amp_falloff = 0.5;
-var scaled_cosine = function(i) {return 0.5*(1.0-Math.cos(i*PI));};
+var scaled_cosine = function(i) {return 0.5*(1.0-fd.cos(i*PI));};
 var perlin;
 let noise = function(x,y,z) {
   y = y || 0; z = z || 0;
@@ -70,7 +76,7 @@ let noise = function(x,y,z) {
 };
 
 function dist(x0,y0,x1,y1){
-  return Math.hypot(x1-x0,y1-y0);
+  return fd.hypot(x1-x0,y1-y0);
 }
 function lerp(a,b,t){
   return a * (1-t) + b * t;
@@ -562,8 +568,8 @@ function smalldot_shape(poly,scale=1){
         let t = j/(n-1);
         let a = t * PI * 2;
         o.push([
-          Math.cos(a)*1-k*0.3,
-          Math.sin(a)*0.5-k*0.3,
+          fd.cos(a)*1-k*0.3,
+          fd.sin(a)*0.5-k*0.3,
         ])
       }
       o = trsl_poly(rot_poly(o,rand()*PI*2),x,y);
@@ -668,7 +674,7 @@ function resample(polyline,step){
     let ly = out[out.length-1][1];
     let mx = polyline[polyline.length-1][0];
     let my = polyline[polyline.length-1][1];
-    let d = Math.sqrt((mx-lx)**2+(my-ly)**2);
+    let d = Math.sqrt(fd.pow(mx-lx,2)+fd.pow(my-ly,2));
     if (d < step*0.5){
       out.pop(); 
     }
@@ -761,8 +767,8 @@ function poissondisk(W, H, r, samples) {
     for (let n = (0); Number((n) < (30)); n += (1)) {
       let sr = ((r) + (((rand()) * (r))));
       let sa = ((6.2831853072) * (rand()));
-      let sx = ((((pos)[0])) + (((sr) * (Math.cos(sa)))));
-      let sy = ((((pos)[1])) + (((sr) * (Math.sin(sa)))));
+      let sx = ((((pos)[0])) + (((sr) * (fd.cos(sa)))));
+      let sy = ((((pos)[1])) + (((sr) * (fd.sin(sa)))));
       let col = (~~(((sx) / (w))));
       let row = (~~(((sy) / (w))));
       if (((((((((Number((col) > (0))) && (Number((row) > (0))))) && (Number((col) < (((cols) - (1))))))) && (Number((row) < (((rows) - (1))))))) && (Number((((grid)[((col) + (((row) * (cols))))])) == (-1))))) {
@@ -818,7 +824,7 @@ function draw_svg_anim(polylines,speed){
   for (let i = 0; i < polylines.length; i++){
     let l = 0;
     for (let j = 1; j < polylines[i].length; j++){
-      l += Math.hypot(
+      l += fd.hypot(
         polylines[i][j-1][0]-polylines[i][j][0],
         polylines[i][j-1][1]-polylines[i][j][1]
       );
@@ -895,12 +901,12 @@ F
 
 
 function pow(a,b){
-  return Math.sign(a) * Math.pow(Math.abs(a),b);
+  return Math.sign(a) * fd.pow(Math.abs(a),b);
 }
 
 function gauss2d(x, y){
-  let z0 = Math.exp(-0.5*x*x);
-  let z1 = Math.exp(-0.5*y*y);
+  let z0 = fd.exp(-0.5*x*x);
+  let z1 = fd.exp(-0.5*y*y);
   return z0*z1;
  }
 
@@ -910,8 +916,8 @@ function squama_mask(w,h){
   for (let i = 0; i < n; i++){
     let t = i/n;
     let a = t * PI * 2;
-    let x = -pow(Math.cos(a),1.3)*w;
-    let y =  pow(Math.sin(a),1.3)*h;
+    let x = -pow(fd.cos(a),1.3)*w;
+    let y =  pow(fd.sin(a),1.3)*h;
     p.push([x,y]);
   }
   return p;
@@ -923,8 +929,8 @@ function squama(w,h,m=3) {
   for (let i = 0; i < n; i++){
     let t = i/(n-1);
     let a = t * PI + PI/2;
-    let x = -pow(Math.cos(a),1.4)*w;
-    let y =  pow(Math.sin(a),1.4)*h;
+    let x = -pow(fd.cos(a),1.4)*w;
+    let y =  pow(fd.sin(a),1.4)*h;
     p.push([x,y]);
   }
   let q = [p];
@@ -950,8 +956,8 @@ function shr_poly(poly,sx){
 }
 function rot_poly(poly,th){
   let qoly = [];
-  let costh = Math.cos(th);
-  let sinth = Math.sin(th);
+  let costh = fd.cos(th);
+  let sinth = fd.sin(th);
   for (let i = 0; i < poly.length; i++){
     let [x0,y0] = poly[i]
     let x = x0* costh-y0*sinth;
@@ -968,11 +974,11 @@ function squama_mesh(m,n,uw,uh,squama_func,noise_x,noise_y,interclip=true){
   for (let i = 0; i < n; i++){
     for (let j = 0; j < m; j++){
       let x = j*uw;
-      let y = (n*uh/2) - Math.cos(i/(n-1) * PI) * (n*uh/2);
+      let y = (n*uh/2) - fd.cos(i/(n-1) * PI) * (n*uh/2);
       let a = noise(x*0.005,y*0.005)*PI*2-PI;
       let r = noise(x*0.005,y*0.005);
-      let dx = Math.cos(a)*r*noise_x;
-      let dy = Math.cos(a)*r*noise_y;
+      let dx = fd.cos(a)*r*noise_x;
+      let dy = fd.cos(a)*r*noise_y;
       pts.push([x+dx,y+dy]);
     }
   }
@@ -1156,7 +1162,7 @@ function fish_body_b(curve0,curve1,scale_scale,pattern_func){
 
 
 function ogee(x){
-  return 4 * Math.pow(x-0.5,3) + 0.5;
+  return 4 * fd.pow(x-0.5,3) + 0.5;
 }
 
 function fish_body_c(curve0,curve1,scale_scale){
@@ -1199,7 +1205,7 @@ function fish_body_c(curve0,curve1,scale_scale){
     for (let j = 0;j < lines[i].length; j++){
       let [x,y] = lines[i][j];
       let t = (y-bbox.y)/bbox.h;
-      let y1 = -Math.cos(t*PI)*bbox.h/2+bbox.y+bbox.h/2;
+      let y1 = -fd.cos(t*PI)*bbox.h/2+bbox.y+bbox.h/2;
 
       let dx = (noise(x*0.005,y1*0.005,0.1)-0.5)*50;
       let dy = (noise(x*0.005,y1*0.005,1.2)-0.5)*50;
@@ -1252,7 +1258,7 @@ function fish_body_d(curve0,curve1,scale_scale){
     }
     
     o1.push(...binclip(o0[i],(x,y,t)=>(
-      (rand()>Math.cos(t*PI) && rand() < x/500) || (rand()>Math.cos(t*PI) && rand() < x/500)
+      (rand()>fd.cos(t*PI) && rand() < x/500) || (rand()>fd.cos(t*PI) && rand() < x/500)
     )).true);
   }
   o1 = clip_multi(o1,outline1).true;
@@ -1272,12 +1278,12 @@ function fin_a(curve,ang0,ang1,func,clip_root=false,curvature0=0,curvature1=0,so
   for (let i = 0; i < curve.length; i++){
     
     if (i == 0){
-      angs.push( Math.atan2(curve[i+1][1]-curve[i][1], curve[i+1][0]-curve[i][0]) - PI/2 );
+      angs.push( fd.atan2(curve[i+1][1]-curve[i][1], curve[i+1][0]-curve[i][0]) - PI/2 );
     }else if (i == curve.length-1){
-      angs.push( Math.atan2(curve[i][1]-curve[i-1][1], curve[i][0]-curve[i-1][0]) - PI/2 );
+      angs.push( fd.atan2(curve[i][1]-curve[i-1][1], curve[i][0]-curve[i-1][0]) - PI/2 );
     }else{
-      let a0 = Math.atan2(curve[i-1][1]-curve[i][1], curve[i-1][0]-curve[i][0]);
-      let a1 = Math.atan2(curve[i+1][1]-curve[i][1], curve[i+1][0]-curve[i][0]);
+      let a0 = fd.atan2(curve[i-1][1]-curve[i][1], curve[i-1][0]-curve[i][0]);
+      let a1 = fd.atan2(curve[i+1][1]-curve[i][1], curve[i+1][0]-curve[i][0]);
       while (a1 > a0){
         a1 -= PI*2;
       }
@@ -1297,17 +1303,17 @@ function fin_a(curve,ang0,ang1,func,clip_root=false,curvature0=0,curvature1=0,so
     let w = func(t);
 
     let [x0,y0] = curve[i];
-    let x1 = x0 + Math.cos(a)*w;
-    let y1 = y0 + Math.sin(a)*w;
+    let x1 = x0 + fd.cos(a)*w;
+    let y1 = y0 + fd.sin(a)*w;
     
     let p = resample([[x0,y0],[x1,y1]],3);
     for (let j = 0; j < p.length; j++){
       let s = j/(p.length-1);
       let ss = Math.sqrt(s);
       let [x,y] = p[j];
-      let cv = lerp(curvature0,curvature1,t)*Math.sin(s*PI);
-      p[j][0] += noise(x*0.1,y*0.1,3)*ss*softness + Math.cos(a-PI/2)*cv;
-      p[j][1] += noise(x*0.1,y*0.1,4)*ss*softness + Math.sin(a-PI/2)*cv;
+      let cv = lerp(curvature0,curvature1,t)*fd.sin(s*PI);
+      p[j][0] += noise(x*0.1,y*0.1,3)*ss*softness + fd.cos(a-PI/2)*cv;
+      p[j][1] += noise(x*0.1,y*0.1,4)*ss*softness + fd.sin(a-PI/2)*cv;
     }
     if (i == 0){
       out2 = p;
@@ -1340,12 +1346,12 @@ function fin_b(curve,ang0,ang1,func,dark=1){
   for (let i = 0; i < curve.length; i++){
     
     if (i == 0){
-      angs.push( Math.atan2(curve[i+1][1]-curve[i][1], curve[i+1][0]-curve[i][0]) - PI/2 );
+      angs.push( fd.atan2(curve[i+1][1]-curve[i][1], curve[i+1][0]-curve[i][0]) - PI/2 );
     }else if (i == curve.length-1){
-      angs.push( Math.atan2(curve[i][1]-curve[i-1][1], curve[i][0]-curve[i-1][0]) - PI/2 );
+      angs.push( fd.atan2(curve[i][1]-curve[i-1][1], curve[i][0]-curve[i-1][0]) - PI/2 );
     }else{
-      let a0 = Math.atan2(curve[i-1][1]-curve[i][1], curve[i-1][0]-curve[i][0]);
-      let a1 = Math.atan2(curve[i+1][1]-curve[i][1], curve[i+1][0]-curve[i][0]);
+      let a0 = fd.atan2(curve[i-1][1]-curve[i][1], curve[i-1][0]-curve[i][0]);
+      let a1 = fd.atan2(curve[i+1][1]-curve[i][1], curve[i+1][0]-curve[i][0]);
       while (a1 > a0){
         a1 -= PI*2;
       }
@@ -1366,25 +1372,25 @@ function fin_b(curve,ang0,ang1,func,dark=1){
     let w = func(t);
 
     let [x0,y0] = curve[i];
-    let x1 = x0 + Math.cos(a)*w;
-    let y1 = y0 + Math.sin(a)*w;
+    let x1 = x0 + fd.cos(a)*w;
+    let y1 = y0 + fd.sin(a)*w;
 
     let b = [
-      x1 + 0.5 * Math.cos(a-PI/2),
-      y1 + 0.5 * Math.sin(a-PI/2),
+      x1 + 0.5 * fd.cos(a-PI/2),
+      y1 + 0.5 * fd.sin(a-PI/2),
     ];
     let c = [
-      x1 + 0.5 * Math.cos(a+PI/2),
-      y1 + 0.5 * Math.sin(a+PI/2),
+      x1 + 0.5 * fd.cos(a+PI/2),
+      y1 + 0.5 * fd.sin(a+PI/2),
     ];
 
     let p = [
-      curve[i][0] + 1.8 * Math.cos(a-PI/2),
-      curve[i][1] + 1.8 * Math.sin(a-PI/2),
+      curve[i][0] + 1.8 * fd.cos(a-PI/2),
+      curve[i][1] + 1.8 * fd.sin(a-PI/2),
     ];
     let q = [
-      curve[i][0] + 1.8 * Math.cos(a+PI/2),
-      curve[i][1] + 1.8 * Math.sin(a+PI/2),
+      curve[i][0] + 1.8 * fd.cos(a+PI/2),
+      curve[i][1] + 1.8 * fd.sin(a+PI/2),
     ];
     out1.push([x1,y1]);
     out0.push([p,b,c,q]);
@@ -1400,15 +1406,15 @@ function fin_b(curve,ang0,ang1,func,dark=1){
     let c = lerp2d(...a1,...p1,0.1);
 
     let o = [];
-    let ang = Math.atan2(c[1]-b[1],c[0]-b[0]);
+    let ang = fd.atan2(c[1]-b[1],c[0]-b[0]);
 
     for (let j = 0; j < n; j++){
       let t = j/(n-1);
-      let d = Math.sin(t*PI)*2;
+      let d = fd.sin(t*PI)*2;
       let a = lerp2d(...b,...c,t);
       o.push([
-        a[0] + Math.cos(ang+PI/2)*d,
-        a[1] + Math.sin(ang+PI/2)*d,
+        a[0] + fd.cos(ang+PI/2)*d,
+        a[1] + fd.sin(ang+PI/2)*d,
       ])
     }
     
@@ -1445,12 +1451,12 @@ function finlet(curve,h,dir=1){
   let angs = [];
   for (let i = 0; i < curve.length; i++){
     if (i == 0){
-      angs.push( Math.atan2(curve[i+1][1]-curve[i][1], curve[i+1][0]-curve[i][0]) - PI/2 );
+      angs.push( fd.atan2(curve[i+1][1]-curve[i][1], curve[i+1][0]-curve[i][0]) - PI/2 );
     }else if (i == curve.length-1){
-      angs.push( Math.atan2(curve[i][1]-curve[i-1][1], curve[i][0]-curve[i-1][0]) - PI/2 );
+      angs.push( fd.atan2(curve[i][1]-curve[i-1][1], curve[i][0]-curve[i-1][0]) - PI/2 );
     }else{
-      let a0 = Math.atan2(curve[i-1][1]-curve[i][1], curve[i-1][0]-curve[i][0]);
-      let a1 = Math.atan2(curve[i+1][1]-curve[i][1], curve[i+1][0]-curve[i][0]);
+      let a0 = fd.atan2(curve[i-1][1]-curve[i][1], curve[i-1][0]-curve[i][0]);
+      let a1 = fd.atan2(curve[i+1][1]-curve[i][1], curve[i+1][0]-curve[i][0]);
       while (a1 > a0){
         a1 -= PI*2;
       }
@@ -1471,8 +1477,8 @@ function finlet(curve,h,dir=1){
     }
 
     let [x0,y0] = curve[i];
-    let x1 = x0 + Math.cos(a)*w;
-    let y1 = y0 + Math.sin(a)*w;
+    let x1 = x0 + fd.cos(a)*w;
+    let y1 = y0 + fd.sin(a)*w;
     out0.push([x1,y1]);
 
   }
@@ -1494,10 +1500,10 @@ function fin_adipose(curve,dx,dy,r){
   let [x2,y2] = curve[curve.length-1];
   let d1 = dist(x,y,x1,y1);
   let d2 = dist(x,y,x2,y2);
-  let a1 = Math.acos(r/d1);
-  let a2 = Math.acos(r/d2);
-  let a01 = Math.atan2(y1-y,x1-x)+a1;
-  let a02 = Math.atan2(y2-y,x2-x)-a2;
+  let a1 = fd.acos(r/d1);
+  let a2 = fd.acos(r/d2);
+  let a01 = fd.atan2(y1-y,x1-x)+a1;
+  let a02 = fd.atan2(y2-y,x2-x)-a2;
   a02 -= PI*2;
   while (a02 < a01){
     a02 += PI*2;
@@ -1507,8 +1513,8 @@ function fin_adipose(curve,dx,dy,r){
     let t = i/(n-1);
     let a = lerp(a01,a02,t);
     let p = [
-      x+Math.cos(a)*r,
-      y+Math.sin(a)*r,
+      x+fd.cos(a)*r,
+      y+fd.sin(a)*r,
     ]
     out0.push(p);
   }
@@ -1516,7 +1522,7 @@ function fin_adipose(curve,dx,dy,r){
   out0 = resample(out0,3);
   for (let i = 0; i < out0.length; i++){
     let t = i/(out0.length-1);
-    let s = Math.sin(t*PI);
+    let s = fd.sin(t*PI);
     let [x,y] = out0[i];
     out0[i][0] += (noise(x*0.01,y*0.01)-0.5)*s*50;
     out0[i][1] += (noise(x*0.01,y*0.01)-0.5)*s*50;
@@ -1524,7 +1530,7 @@ function fin_adipose(curve,dx,dy,r){
   let cc = out0.concat(curve.slice().reverse());
   let out1 = clip(trsl_poly(out0,0,4),cc).true;
 
-  out1 = clip_multi(out1,(x,y,t)=>(rand()<Math.sin(t*PI)),binclip).true;
+  out1 = clip_multi(out1,(x,y,t)=>(rand()<fd.sin(t*PI)),binclip).true;
   return [cc,[out0,...out1]];
 
 }
@@ -1536,17 +1542,17 @@ function fish_lip(x0,y0,x1,y1,w){
   x1 += rand()*0.001-0.0005;
   y1 += rand()*0.001-0.0005;
   let h = dist(x0,y0,x1,y1);
-  let a0 = Math.atan2(y1-y0,x1-x0);
+  let a0 = fd.atan2(y1-y0,x1-x0);
   let n = 10;
-  let ang = Math.acos(w/h);
-  let dx = Math.cos(a0+PI/2)*0.5;
-  let dy = Math.sin(a0+PI/2)*0.5;
+  let ang = fd.acos(w/h);
+  let dx = fd.cos(a0+PI/2)*0.5;
+  let dy = fd.sin(a0+PI/2)*0.5;
   let o = [[x0-dx,y0-dy]];
   for (let i = 0; i < n; i++){
     let t = i/(n-1);
     let a = lerp(ang,PI*2-ang,t) + a0;
-    let x = -Math.cos(a)*w + x1;
-    let y = -Math.sin(a)*w + y1;
+    let x = -fd.cos(a)*w + x1;
+    let y = -fd.sin(a)*w + y1;
     o.push([x,y]);
   }
   o.push([x0+dx,y0+dy]);
@@ -1561,29 +1567,29 @@ function fish_lip(x0,y0,x1,y1,w){
 
 function fish_teeth(x0,y0,x1,y1,h,dir,sep=3.5){
   let n = Math.max(2,~~(dist(x0,y0,x1,y1)/sep));
-  let ang = Math.atan2(y1-y0,x1-x0);
+  let ang = fd.atan2(y1-y0,x1-x0);
   let out = [];
   for (let i = 0; i < n; i++){
     let t = i/(n-1);
     let a = lerp2d(x0,y0,x1,y1,t);
     let w = h*t;
     let b = [
-      a[0]+Math.cos(ang+dir*PI/2)*w,
-      a[1]+Math.sin(ang+dir*PI/2)*w,
+      a[0]+fd.cos(ang+dir*PI/2)*w,
+      a[1]+fd.sin(ang+dir*PI/2)*w,
     ];
     let c = [
-      a[0] + 1 * Math.cos(ang),
-      a[1] + 1 * Math.sin(ang),
+      a[0] + 1 * fd.cos(ang),
+      a[1] + 1 * fd.sin(ang),
     ];
     let d = [
-      a[0] + 1 * Math.cos(ang+PI),
-      a[1] + 1 * Math.sin(ang+PI),
+      a[0] + 1 * fd.cos(ang+PI),
+      a[1] + 1 * fd.sin(ang+PI),
     ];
     let e = lerp2d(...c,...b,0.7);
     let f = lerp2d(...d,...b,0.7);
     let g = [
-      a[0]+Math.cos(ang+dir*(PI/2+0.15))*w,
-      a[1]+Math.sin(ang+dir*(PI/2+0.15))*w,
+      a[0]+fd.cos(ang+dir*(PI/2+0.15))*w,
+      a[1]+fd.sin(ang+dir*(PI/2+0.15))*w,
     ]
     out.push([c,e,g,f,d])
     // out.push(barbel(...a,10,ang+dir*PI/2))
@@ -1593,17 +1599,17 @@ function fish_teeth(x0,y0,x1,y1,h,dir,sep=3.5){
 
 function fish_jaw(x0,y0,x1,y1,x2,y2){
   let n = 10;
-  let ang = Math.atan2(y2-y0,x2-x0);
+  let ang = fd.atan2(y2-y0,x2-x0);
   let d = dist(x0,y0,x2,y2);
   let o = [];
   for (let i = 0; i < n; i++){
     let t = i/(n-1);
-    let s = Math.sin(t*PI);
+    let s = fd.sin(t*PI);
     let w = s*d/20;
     let p = lerp2d(x2,y2,x0,y0,t);
     let q = [
-      p[0] + Math.cos(ang-PI/2)*w,
-      p[1] + Math.sin(ang-PI/2)*w,
+      p[0] + fd.cos(ang-PI/2)*w,
+      p[1] + fd.sin(ang-PI/2)*w,
     ]
     let qq = [
       q[0] + (noise(q[0]*0.01,q[1]*0.01,1)-0.5)*4*s,
@@ -1624,18 +1630,18 @@ function fish_eye_a(ex,ey,rad){
     let t = i/(n-1);
     let a = t * PI*2 + Math.PI/4*3;
     eye0.push([
-      ex + Math.cos(a)*rad,
-      ey + Math.sin(a)*rad
+      ex + fd.cos(a)*rad,
+      ey + fd.sin(a)*rad
     ]);
     if (t > 0.5){
       eye1.push([
-        ex + Math.cos(a)*(rad*0.8),
-        ey + Math.sin(a)*(rad*0.8)
+        ex + fd.cos(a)*(rad*0.8),
+        ey + fd.sin(a)*(rad*0.8)
       ]);
     }
     eye2.push([
-      ex + Math.cos(a)*(rad*0.4) -0.75,
-      ey + Math.sin(a)*(rad*0.4) -0.75
+      ex + fd.cos(a)*(rad*0.4) -0.75,
+      ey + fd.sin(a)*(rad*0.4) -0.75
     ]);
   }
 
@@ -1652,12 +1658,12 @@ function fish_eye_b(ex,ey,rad){
     let t = i/(n-1);
     let a = t * PI*2+Math.E;
     eye0.push([
-      ex + Math.cos(a)*rad,
-      ey + Math.sin(a)*rad
+      ex + fd.cos(a)*rad,
+      ey + fd.sin(a)*rad
     ]);
     eye2.push([
-      ex + Math.cos(a)*(rad*0.4),
-      ey + Math.sin(a)*(rad*0.4)
+      ex + fd.cos(a)*(rad*0.4),
+      ey + fd.sin(a)*(rad*0.4)
     ]);
   }
   let m =~~((rad*0.6)/2);
@@ -1668,17 +1674,17 @@ function fish_eye_b(ex,ey,rad){
       let t = i/(n-1);
       let a = lerp(PI*7/8,PI*13/8,t)
       e.push([
-        ex + Math.cos(a)*r,
-        ey + Math.sin(a)*r
+        ex + fd.cos(a)*r,
+        ey + fd.sin(a)*r
       ]);
     
     }
     eye1.push(e);
   }
   let trig = [
-    [ex+Math.cos(-PI*3/4)*(rad*0.9),ey+Math.sin(-PI*3/4)*(rad*0.9)],
+    [ex+fd.cos(-PI*3/4)*(rad*0.9),ey+fd.sin(-PI*3/4)*(rad*0.9)],
     [ex+1,ey+1],
-    [ex+Math.cos(-PI*11/12)*(rad*0.9),ey+Math.sin(-PI*11/12)*(rad*0.9)],
+    [ex+fd.cos(-PI*11/12)*(rad*0.9),ey+fd.sin(-PI*11/12)*(rad*0.9)],
   ];
   trig = resample(trig,3);
   for (let i = 0; i < trig.length; i++){
@@ -1704,8 +1710,8 @@ function barbel(x,y,n,ang,dd=3){
   let sd = rand()*PI*2;
   let ar = 1;
   for (let i = 0; i < n; i++){
-    x += Math.cos(ang)*dd;
-    y += Math.sin(ang)*dd;
+    x += fd.cos(ang)*dd;
+    y += fd.sin(ang)*dd;
     ang += (noise(i*0.1,sd)-0.5)*ar;
     if (i < n/2){
       ar *= 1.02;
@@ -1724,11 +1730,11 @@ function barbel(x,y,n,ang,dd=3){
     let b = curve[i];
     let c = curve[i+1];
 
-    let a1 = Math.atan2(c[1]-b[1],c[0]-b[0]);
+    let a1 = fd.atan2(c[1]-b[1],c[0]-b[0]);
     let a2;
 
     if (a){
-      let a0 = Math.atan2(a[1]-b[1],a[0]-b[0]);
+      let a0 = fd.atan2(a[1]-b[1],a[0]-b[0]);
       
       a1 -= PI*2;
       while (a1 < a0){
@@ -1740,12 +1746,12 @@ function barbel(x,y,n,ang,dd=3){
     }
 
     o0.push([
-      b[0]+Math.cos(a2)*w,
-      b[1]+Math.sin(a2)*w
+      b[0]+fd.cos(a2)*w,
+      b[1]+fd.sin(a2)*w
     ])
     o1.push([
-      b[0]+Math.cos(a2+PI)*w,
-      b[1]+Math.sin(a2+PI)*w
+      b[0]+fd.cos(a2+PI)*w,
+      b[1]+fd.sin(a2+PI)*w
     ])
   }
   o0.push(curve[curve.length-1]);
@@ -1760,8 +1766,8 @@ function fish_head(x0,y0,x1,y1,x2,y2,arg){
   for (let i = 0; i < n; i++){
     let t = i/(n-1);
     let a = PI/2 * t;
-    let x = x1-pow(Math.cos(a),1.5)*(x1-x0);
-    let y = y0-pow(Math.sin(a),1.5)*(y0-y1);
+    let x = x1-pow(fd.cos(a),1.5)*(x1-x0);
+    let y = y0-pow(fd.sin(a),1.5)*(y0-y1);
     // let x = lerp(x0,x1,t);
     // let y = lerp(y0,y1,t);
 
@@ -1772,22 +1778,22 @@ function fish_head(x0,y0,x1,y1,x2,y2,arg){
   for (let i = 0; i < n; i++){
     let t = i/(n-1);
     let a = PI/2 * t;
-    let x = x2-pow(Math.cos(a),0.8)*(x2-x0);
-    let y = y0+pow(Math.sin(a),1.5)*(y2-y0);
+    let x = x2-pow(fd.cos(a),0.8)*(x2-x0);
+    let y = y0+pow(fd.sin(a),1.5)*(y2-y0);
 
     let dx = (noise(x*0.01,y*0.01,9)*40-20)*(1.01-t);
     let dy = (noise(x*0.01,y*0.01,8)*40-20)*(1.01-t);
     curve1.unshift([x+dx,y+dy]);
   }
-  let ang = Math.atan2(y2-y1,x2-x1);
+  let ang = fd.atan2(y2-y1,x2-x1);
   for (let i = 1; i < n-1; i++){
     let t = i/(n-1);
     let p = lerp2d(x1,y1,x2,y2,t);
-    let s = pow(Math.sin(t*Math.PI),0.5);
+    let s = pow(fd.sin(t*Math.PI),0.5);
     let r = noise(t*2,1.2) * s * 20;
 
-    let dx = Math.cos(ang-Math.PI/2) * r;
-    let dy = Math.sin(ang-Math.PI/2) * r;
+    let dx = fd.cos(ang-Math.PI/2) * r;
+    let dy = fd.sin(ang-Math.PI/2) * r;
     curve2.push([ p[0]+dx,p[1]+dy ])
   }
   let outline = curve0.concat(curve2).concat(curve1);
@@ -1795,7 +1801,7 @@ function fish_head(x0,y0,x1,y1,x2,y2,arg){
   let inline = curve2.slice(~~(curve2.length/3)).concat(curve1.slice(0,~~(curve1.length/2))).slice(0,curve0.length);
   for (let i = 0; i < inline.length; i++){
     let t = i/(inline.length-1);
-    let s = Math.sin(t*PI)**2*0.1+0.12;
+    let s = fd.pow(fd.sin(t*PI),2)*0.1+0.12;
     inline[i] = lerp2d(...inline[i],...curve0[i],s);
   }
   let dix = (x0-inline[inline.length-1][0])*0.3;
@@ -1814,18 +1820,18 @@ function fish_head(x0,y0,x1,y1,x2,y2,arg){
   if (d0 < arg.eye_size && d1 < arg.eye_size){
     arg.eye_size = Math.min(d0,d1);
   }else if (d0 < arg.eye_size){
-    let ang = Math.atan2(y1-y0,x1-x0)+PI/2;
-    ex = x0*0.5+x1*0.5 + Math.cos(ang)*arg.eye_size;
-    ey = y0*0.5+y1*0.5 + Math.sin(ang)*arg.eye_size;
+    let ang = fd.atan2(y1-y0,x1-x0)+PI/2;
+    ex = x0*0.5+x1*0.5 + fd.cos(ang)*arg.eye_size;
+    ey = y0*0.5+y1*0.5 + fd.sin(ang)*arg.eye_size;
   }
 
   let jaw_pt0 = curve1[18-arg.mouth_size];
   let jaw_l = dist(...jaw_pt0,...curve1[18])*arg.jaw_size;
-  let jaw_ang0 = Math.atan2(curve1[18][1]-jaw_pt0[1],curve1[18][0]-jaw_pt0[0]);
+  let jaw_ang0 = fd.atan2(curve1[18][1]-jaw_pt0[1],curve1[18][0]-jaw_pt0[0]);
   let jaw_ang =jaw_ang0- (arg.has_teeth*0.5+0.5)*arg.jaw_open*PI/4;
   let jaw_pt1 = [
-    jaw_pt0[0]+Math.cos(jaw_ang)*jaw_l,
-    jaw_pt0[1]+Math.sin(jaw_ang)*jaw_l,
+    jaw_pt0[0]+fd.cos(jaw_ang)*jaw_l,
+    jaw_pt0[1]+fd.sin(jaw_ang)*jaw_l,
   ]
 
   let [eye0,ef] = (arg.eye_type?fish_eye_b:fish_eye_a)(ex,ey,arg.eye_size);
@@ -1910,7 +1916,7 @@ function fish_head(x0,y0,x1,y1,x2,y2,arg){
 }
 
 function bean(x){
-  return Math.pow(0.25-Math.pow(x-0.5,2),0.5)*(2.6+2.4*Math.pow(x,1.5))*0.542;
+  return fd.pow(0.25-fd.pow(x-0.5,2),0.5)*(2.6+2.4*fd.pow(x,1.5))*0.542;
 }
 
 function deviate(n){
@@ -1928,13 +1934,13 @@ function fish(arg){
       let t = i/(n-1);
       
       let x =  225 + (t-0.5)*arg.body_length;
-      let y = 150 - (Math.sin(t*PI)*lerp(0.5,1,noise(t*2,1))*s+(1-s))*arg.body_height;
+      let y = 150 - (fd.sin(t*PI)*lerp(0.5,1,noise(t*2,1))*s+(1-s))*arg.body_height;
       curve0.push([x,y]);
     }
     for (let i = 0; i < n; i++){
       let t = i/(n-1);
       let x =  225 + (t-0.5)*arg.body_length;
-      let y = 150 + (Math.sin(t*PI)*lerp(0.5,1,noise(t*2,2))*s+(1-s))*arg.body_height;
+      let y = 150 + (fd.sin(t*PI)*lerp(0.5,1,noise(t*2,2))*s+(1-s))*arg.body_height;
       curve1.push([x,y]);
     }
   }else if (arg.body_curve_type == 1){
@@ -1994,12 +2000,12 @@ function fish(arg){
     f0_a0 = 0.2 + deviate(0.05);
     f0_a1 = 0.3 + deviate(0.05);
     f0_cv = 0;
-    f0_func = t=>(  (0.3+noise(t*3)*0.7)*arg.dorsal_length *Math.sin(t*PI)**0.5  );
+    f0_func = t=>(  (0.3+noise(t*3)*0.7)*arg.dorsal_length *fd.pow(fd.sin(t*PI),0.5)  );
   }else if (arg.dorsal_type == 1){
     f0_a0 = 0.6 + deviate(0.05);
     f0_a1 = 0.3 + deviate(0.05);
     f0_cv = arg.dorsal_length/8;
-    f0_func = t=>(  arg.dorsal_length* ((Math.pow(t-1,2))*0.5 + (1-t)*0.5)  );
+    f0_func = t=>(  arg.dorsal_length* ((fd.pow(t-1,2))*0.5 + (1-t)*0.5)  );
   }
   let f0_curve,c0,f0;
   if (arg.dorsal_texture_type == 0){
@@ -2018,14 +2024,14 @@ function fish(arg){
   for (let i = 0; i < 10; i++){
     let t = i/9;
     let y = lerp(f1_pt[1]-arg.wing_width/2,f1_pt[1]+arg.wing_width/2,t);
-    f1_curve.push([f1_pt[0] /*+ Math.sin(t*PI)*2*/,y]);
+    f1_curve.push([f1_pt[0] /*+ fd.sin(t*PI)*2*/,y]);
   }
   if (arg.wing_type == 0){
     f1_a0 = -0.4 + deviate(0.05);
     f1_a1 = 0.4 + deviate(0.05);
     f1_soft = 10;
     f1_cv = 0;
-    f1_func = t=>(  (40+(20+noise(t*3)*70)*Math.sin(t*PI)**0.5)/130*arg.wing_length  );
+    f1_func = t=>(  (40+(20+noise(t*3)*70)*fd.pow(fd.sin(t*PI),0.5))/130*arg.wing_length  );
   }else{
     f1_a0 = 0 + deviate(0.05);
     f1_a1 = 0.4 + deviate(0.05);
@@ -2050,7 +2056,7 @@ function fish(arg){
   if (arg.pelvic_type == 0){
     f2_a0 = -0.8 + deviate(0.05);;
     f2_a1 = -0.5 + deviate(0.05);;
-    f2_func = t=>(  (10+(15+noise(t*3)*60)*Math.sin(t*PI)**0.5)/85*arg.pelvic_length  );
+    f2_func = t=>(  (10+(15+noise(t*3)*60)*fd.pow(fd.sin(t*PI),0.5))/85*arg.pelvic_length  );
   }else{
     f2_a0 = -0.9 + deviate(0.05);;
     f2_a1 = -0.3 + deviate(0.05);;
@@ -2071,7 +2077,7 @@ function fish(arg){
   if (arg.anal_type == 0){
     f3_a0 = -0.4 + deviate(0.05);;
     f3_a1 = -0.4 + deviate(0.05);;
-    f3_func = t=>(  (10+(10+noise(t*3)*30)*Math.sin(t*PI)**0.5)/50*arg.anal_length  );
+    f3_func = t=>(  (10+(10+noise(t*3)*30)*fd.pow(fd.sin(t*PI),0.5))/50*arg.anal_length  );
   }else{
     f3_a0 = -0.4 + deviate(0.05);;
     f3_a1 = -0.4 + deviate(0.05);;
@@ -2096,28 +2102,28 @@ function fish(arg){
   if (arg.tail_type == 0){
     f4_curve = [curve0[curve0.length-1], curve1[curve1.length-1]];
     f4_curve = resample(f4_curve,f4_d);
-    ;[c4,f4] = fin_a(f4_curve,-0.6,0.6,t=>(  (75-(10+noise(t*3)*10)*Math.sin(3*t*PI-PI))/75*arg.tail_length  ),1);  
+    ;[c4,f4] = fin_a(f4_curve,-0.6,0.6,t=>(  (75-(10+noise(t*3)*10)*fd.sin(3*t*PI-PI))/75*arg.tail_length  ),1);  
   }else if (arg.tail_type == 1){
     f4_curve = [curve0[curve0.length-2], curve1[curve1.length-2]];
     f4_curve = resample(f4_curve,f4_d);
-    ;[c4,f4] = fin_a(f4_curve,-0.6,0.6,t=>( arg.tail_length*(Math.sin(t*PI)*0.5+0.5)  ),1); 
+    ;[c4,f4] = fin_a(f4_curve,-0.6,0.6,t=>( arg.tail_length*(fd.sin(t*PI)*0.5+0.5)  ),1); 
   }else if (arg.tail_type == 2){
     f4_curve = [curve0[curve0.length-1], curve1[curve1.length-1]];
     f4_curve = resample(f4_curve,f4_d*0.7);
     let cv = arg.tail_length/8;
-    ;[c4,f4] = fin_a(f4_curve,-0.6,0.6,t=>(  (Math.abs(Math.cos(PI*t))*0.8+0.2)*arg.tail_length  ),1,cv,-cv);  
+    ;[c4,f4] = fin_a(f4_curve,-0.6,0.6,t=>(  (Math.abs(fd.cos(PI*t))*0.8+0.2)*arg.tail_length  ),1,cv,-cv);  
   }else if (arg.tail_type == 3){
     f4_curve = [curve0[curve0.length-2], curve1[curve1.length-2]];
     f4_curve = resample(f4_curve,f4_d);
-    ;[c4,f4] = fin_a(f4_curve,-0.6,0.6,t=>(  (1-Math.sin(t*PI)*0.3)*arg.tail_length  ),1);  
+    ;[c4,f4] = fin_a(f4_curve,-0.6,0.6,t=>(  (1-fd.sin(t*PI)*0.3)*arg.tail_length  ),1);  
   }else if (arg.tail_type == 4){
     f4_curve = [curve0[curve0.length-2], curve1[curve1.length-2]];
     f4_curve = resample(f4_curve,f4_d);
-    ;[c4,f4] = fin_a(f4_curve,-0.6,0.6,t=>(  (1-Math.sin(t*PI)*0.6)*(1-t*0.45)*arg.tail_length  ),1);  
+    ;[c4,f4] = fin_a(f4_curve,-0.6,0.6,t=>(  (1-fd.sin(t*PI)*0.6)*(1-t*0.45)*arg.tail_length  ),1);  
   }else if (arg.tail_type == 5){
     f4_curve = [curve0[curve0.length-2], curve1[curve1.length-2]];
     f4_curve = resample(f4_curve,f4_d);
-    ;[c4,f4] = fin_a(f4_curve,-0.6,0.6,t=>(  (1-Math.sin(t*PI)**0.4*0.55)*arg.tail_length  ),1);
+    ;[c4,f4] = fin_a(f4_curve,-0.6,0.6,t=>(  (1-fd.pow(fd.sin(t*PI),0.4)*0.55)*arg.tail_length  ),1);
   }
   // f4 = clip_multi(f4,trsl_poly(outline,-1,0)).false;
   bd = clip_multi(bd,trsl_poly(c4,1,0)).false;
@@ -2141,7 +2147,7 @@ function fish(arg){
   }else{
     f5_curve = resample(curve0.slice(arg.dorsal_end+2,-3),5);
     if (f5_curve.length>2){
-      ;[c5,f5] = fin_a(f5_curve,0.2,0.3, t=>(  (0.3+noise(t*3)*0.7)*arg.dorsal_length*0.6 *Math.sin(t*PI)**0.5  ));
+      ;[c5,f5] = fin_a(f5_curve,0.2,0.3, t=>(  (0.3+noise(t*3)*0.7)*arg.dorsal_length*0.6 *fd.pow(fd.sin(t*PI),0.5)  ));
     }
     
   }

@@ -135,6 +135,61 @@ header that day so everything fits.
 | `--salt kitchen` | A different fish schedule, so two frames don't match. |
 | `--location`, `--coords`, `--units f`, `--no-weather` | See [Weather](#weather). |
 
+## In C, for microcontrollers
+
+`c/` is a port of the whole clock face to C, with no dependencies beyond the
+C library. It's meant for an ESP32 frame. For the same time and options it
+draws the same pixels as the JavaScript, and `npm test` checks that when a C
+compiler is available.
+
+```sh
+make -C c
+c/build/frame_cli --time 2026-10-03T14:05 --weather rain,14,8 -o frame.pbm
+c/build/frame_cli --catch --time 2026-10-03T14:05   # just the name
+```
+
+```c
+#include "fishfodder.h"
+
+ff_time now = {2026, 10, 3, 14, 5, 6};            // Sat 3 Oct, 14:05
+ff_weather sky = {ff_sky_for_code(61), 14, 8};    // WMO code from Open-Meteo
+ff_options opts = {800, 480, .weather = &sky};
+ff_bitmap frame;
+if (ff_render(&now, &opts, &frame, NULL) == 0) {
+  // frame.pixels: width x height bytes, 1 = ink. Pack and send to the panel.
+  ff_bitmap_free(&frame);
+}
+```
+
+- `fishdraw.c` is fishdraw, translated function by function. Each name draws
+  the same fish, bit for bit, as `src/vendor/fishdraw.js`; this was checked on
+  thousands of names. `fishdraw.h` is its API, and it can be used on its own.
+- `fishfodder.c` holds the names, schedule, lettering, weather icons, layout and
+  rasteriser. The word lists and fonts in `fishfodder_data.h` are generated
+  from the JS by `node scripts/gen-c-data.js`, so edit `src/names.js` and
+  regenerate.
+- The trigonometry comes from `fdlibm.c` (V8's copy of fdlibm), not the
+  platform's libm, because libms disagree in the last bit and that changes the
+  fish. The JS uses the same functions (`src/vendor/fdlibm.js`). That also
+  keeps browsers in step with Node.
+- Build with `-ffp-contract=off`. Fused multiply-adds round differently and
+  would change the drawings. IEEE doubles are required, so any 32- or 64-bit
+  target is fine except the x87 FPU.
+
+On a desktop a fish takes about 30 ms to draw (100 ms at worst) and a whole
+frame about 40 ms. Drawing a fish needs 1.3 MB of working memory typically and
+4.2 MB at most, so on an ESP32 use an ESP32-S3 with PSRAM. Point the allocator
+at PSRAM:
+
+```c
+fishdraw_set_allocator(psram_alloc, free);  // e.g. heap_caps_malloc(n, MALLOC_CAP_SPIRAM)
+```
+
+Give the task a 32 KB stack. The ESP32-S3's FPU is single precision only, so
+doubles run in software. Expect seconds per fish rather than milliseconds,
+which is fine for a fish that changes hourly. This hasn't been measured on
+hardware yet. The last fish is cached, so per-minute redraws skip fishdraw.
+
 ## How it works
 
 - `src/names.js` generates a name and a field note from a seed. Four styles:
@@ -145,7 +200,9 @@ header that day so everything fits.
   lists the small changes. The main one: upstream builds its noise table on the
   first draw only, so in a long-running process the same name could draw a
   different fish depending on what came before. fish-fodder resets it, so
-  every draw matches `node fishdraw.js --seed "<name>"`.
+  every draw matches `node fishdraw.js --seed "<name>"`. Its maths goes
+  through `src/vendor/fdlibm.js`, which matches Node's `Math` bit for bit, so
+  browsers and the C port draw the same fish too.
 - `src/render.js` lays out the frame and rasterises it straight to 1 bit, with
   lettering in the Hershey stroke fonts to match fishdraw's plotter style.
 - `src/weather.js` maps forecast codes to kinds of sky and draws their icons;
@@ -162,6 +219,8 @@ npm test
 
 - Fish drawings: [fishdraw](https://github.com/LingDong-/fishdraw) by Lingdong
   Huang, MIT licence (`src/vendor/LICENSE-fishdraw`).
+- Maths: fdlibm, via [V8](https://v8.dev)'s `ieee754.cc` (BSD licence,
+  `src/vendor/LICENSE-v8`, `c/LICENSE-v8`); originally Sun Microsystems.
 - Weather: [Open-Meteo](https://open-meteo.com) (CC BY 4.0); location estimate
   from [ipinfo.io](https://ipinfo.io).
 - Lettering: the Hershey Fonts were originally created by Dr. A. V. Hershey

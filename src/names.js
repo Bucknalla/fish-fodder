@@ -226,3 +226,9 @@ export function generateCatch(seed) {
   }
   return { name, note: note(r), rare, style };
 }
+
+// The word lists, for scripts/gen-c-data.js (the C port uses the same lists).
+export const WORDS = {
+  GENUS_ROOTS, GENUS_SUFFIXES, SPECIES, QUALIFIERS, ADJECTIVES, FISH, COMPOUND_FRONT, COMPOUND_BACK,
+  BODY_PARTS, TITLES, FIRST_NAMES, SURNAME_FRONT, SURNAME_BACK, PARTICLES, LEGENDS, NOTES,
+};

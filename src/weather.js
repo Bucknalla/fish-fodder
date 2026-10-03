@@ -1,5 +1,8 @@
 // Weather for the header: turning forecast codes into a few kinds of sky, and
 // drawing each one as a small pen-stroke icon to match the fish.
+// (fdlibm's sin and cos keep the icons identical in every engine and in C.)
+
+import * as fd from './vendor/fdlibm.js';
 
 // Open-Meteo reports WMO weather codes.
 // https://open-meteo.com/en/docs#weather_variable_documentation
@@ -37,14 +40,14 @@ function arc(cx, cy, r, a0, a1, n = 24) {
   const pts = [];
   for (let i = 0; i <= n; i++) {
     const a = a0 + ((a1 - a0) * i) / n;
-    pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    pts.push([cx + r * fd.cos(a), cy + r * fd.sin(a)]);
   }
   return pts;
 }
 
 const PUFFS = [[0.3, 0.58, 0.17], [0.53, 0.44, 0.23], [0.77, 0.58, 0.16]];
 const BASE = 0.74;
-const halfChord = ([, cy, r]) => Math.sqrt(Math.max(0, r * r - (BASE - cy) ** 2));
+const halfChord = ([, cy, r]) => Math.sqrt(Math.max(0, r * r - (BASE - cy) * (BASE - cy)));
 const LEFT = PUFFS[0][0] - halfChord(PUFFS[0]);
 const RIGHT = PUFFS[2][0] + halfChord(PUFFS[2]);
 
@@ -52,7 +55,7 @@ const RIGHT = PUFFS[2][0] + halfChord(PUFFS[2]);
 function cloudTop(x) {
   let top = Infinity;
   for (const [cx, cy, r] of PUFFS) {
-    if (Math.abs(x - cx) <= r) top = Math.min(top, cy - Math.sqrt(Math.max(0, r * r - (x - cx) ** 2)));
+    if (Math.abs(x - cx) <= r) top = Math.min(top, cy - Math.sqrt(Math.max(0, r * r - (x - cx) * (x - cx))));
   }
   return x >= LEFT && x <= RIGHT ? top : Infinity;
 }
@@ -61,7 +64,7 @@ function cloudTop(x) {
 // grows the cloud slightly.
 function insideCloud(x, y, margin = 0) {
   if (y > BASE + margin) return false;
-  if (PUFFS.some(([cx, cy, r]) => (x - cx) ** 2 + (y - cy) ** 2 < (r + margin) ** 2)) return true;
+  if (PUFFS.some(([cx, cy, r]) => (x - cx) * (x - cx) + (y - cy) * (y - cy) < (r + margin) * (r + margin))) return true;
   return x > LEFT - margin && x < RIGHT + margin && y > cloudTop(x) - margin;
 }
 
@@ -74,10 +77,10 @@ function cloud(dx = 0, dy = 0, k = 1) {
     let run = [];
     for (let s = 0; s <= 96; s++) {
       const a = (s / 96) * TAU;
-      const x = cx + r * Math.cos(a);
-      const y = cy + r * Math.sin(a);
+      const x = cx + r * fd.cos(a);
+      const y = cy + r * fd.sin(a);
       const hidden = y > BASE + 1e-6
-        || others.some(([ox, oy, or]) => (x - ox) ** 2 + (y - oy) ** 2 < (or - 1e-3) ** 2)
+        || others.some(([ox, oy, or]) => (x - ox) * (x - ox) + (y - oy) * (y - oy) < (or - 1e-3) * (or - 1e-3))
         || (x > LEFT && x < RIGHT && y > cloudTop(x) + 0.01);
       if (hidden) {
         if (run.length > 1) out.push(run);
@@ -122,7 +125,7 @@ function sun(cx, cy, r) {
   const out = [arc(cx, cy, r, 0, TAU, 32)];
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * TAU;
-    out.push([[cx + r * 1.45 * Math.cos(a), cy + r * 1.45 * Math.sin(a)], [cx + r * 1.9 * Math.cos(a), cy + r * 1.9 * Math.sin(a)]]);
+    out.push([[cx + r * 1.45 * fd.cos(a), cy + r * 1.45 * fd.sin(a)], [cx + r * 1.9 * fd.cos(a), cy + r * 1.9 * fd.sin(a)]]);
   }
   return out;
 }
@@ -146,7 +149,7 @@ const ICONS = {
       const s = 0.06;
       return [0, 1, 2].map((j) => {
         const a = (j / 3) * Math.PI + Math.PI / 2;
-        return [[x - s * Math.cos(a), y - s * Math.sin(a)], [x + s * Math.cos(a), y + s * Math.sin(a)]];
+        return [[x - s * fd.cos(a), y - s * fd.sin(a)], [x + s * fd.cos(a), y + s * fd.sin(a)]];
       });
     }),
   ],

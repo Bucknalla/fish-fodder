@@ -1,6 +1,7 @@
 // Turn strings into polylines using the Hershey stroke fonts.
 
 import { ROMAN_SIMPLEX, ROMAN_DUPLEX } from './hershey-data.js';
+import * as fd from './vendor/fdlibm.js';
 
 export const FONTS = { simplex: ROMAN_SIMPLEX, duplex: ROMAN_DUPLEX };
 
@@ -18,7 +19,7 @@ function glyph(font, ch) {
     // Not in the ASCII Hershey set: a small circle at cap height.
     const strokes = [Array.from({ length: 17 }, (_, i) => {
       const a = (i / 16) * Math.PI * 2;
-      return [4 + 3 * Math.cos(a), -18 + 3 * Math.sin(a)];
+      return [4 + 3 * fd.cos(a), -18 + 3 * fd.sin(a)];
     })];
     const g = { advance: 9, strokes };
     cache.set(key, g);
