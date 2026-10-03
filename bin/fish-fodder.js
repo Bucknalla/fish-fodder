@@ -9,6 +9,8 @@ import { generateCatch } from '../src/names.js';
 import { encodePNG } from '../src/node/png.js';
 import { runClock } from '../src/node/clock.js';
 import { startServer } from '../src/node/server.js';
+import { createWeather } from '../src/node/weather.js';
+import { KIND_LABELS } from '../src/weather.js';
 
 const HELP = `fish-fodder — a new fish with a silly name every hour
 
@@ -24,6 +26,13 @@ Frame options:
   --rotate <0|90|180|270>          for frames mounted portrait or upside down
   --clock <24h|12h>                (default 24h)
   --salt <text>                    different fish from another frame on the same schedule
+
+Weather (today's forecast in the header, from open-meteo.com):
+  --location <place>               e.g. "Bristol" or "Portland, US" (default: estimated
+                                   from the network's IP address)
+  --coords <lat,lon>               e.g. 51.45,-2.59
+  --units <c|f>                    Celsius or Fahrenheit (default c)
+  --no-weather                     leave it out
 
 render:
   --at <date-time>                 e.g. 2026-10-03T14:30 (default now)
@@ -56,6 +65,8 @@ const { values: o, positionals } = parseArgs({
     count: { type: 'string' }, driver: { type: 'string' }, update: { type: 'string', default: 'auto' },
     exec: { type: 'string' }, python: { type: 'string' }, port: { type: 'string' },
     host: { type: 'string' }, help: { type: 'boolean', short: 'h' },
+    location: { type: 'string' }, coords: { type: 'string' }, units: { type: 'string' },
+    'no-weather': { type: 'boolean' },
   },
 });
 
@@ -81,6 +92,19 @@ function frameOpts() {
   return opts;
 }
 
+// The forecast source, or null with --no-weather.
+function weatherService() {
+  if (o['no-weather']) return null;
+  let coords;
+  if (o.coords) {
+    coords = o.coords.split(',').map(Number);
+    if (coords.length !== 2 || coords.some((n) => !Number.isFinite(n))) die('--coords takes lat,lon, e.g. 51.45,-2.59');
+  }
+  const units = { c: 'celsius', f: 'fahrenheit' }[(o.units ?? 'c').toLowerCase()[0]];
+  if (!units) die('--units must be c or f');
+  return createWeather({ location: o.location, coords, units, log: (msg) => console.error(msg) });
+}
+
 function when() {
   const d = o.at ? new Date(o.at) : new Date();
   if (Number.isNaN(d.getTime())) die(`can't read date ${o.at}`);
@@ -96,10 +120,13 @@ if (o.help || !cmd) {
 if (cmd === 'render') {
   const opts = frameOpts();
   if (o.name) opts.catch = { ...generateCatch(o.name), name: o.name, rare: false };
-  const { bitmap, catch: c } = renderFrame(when(), opts);
+  const at = when();
+  opts.weather = await weatherService()?.forecast(at);
+  const { bitmap, catch: c } = renderFrame(at, opts);
   const out = o.out ?? 'frame.png';
   writeFileSync(out, encodePNG(bitmap));
-  console.log(`${out}: ${c.name} — ${c.note}${c.rare ? ' (rare catch!)' : ''}`);
+  const wx = opts.weather ? ` [${KIND_LABELS[opts.weather.kind]} ${Math.round(opts.weather.high)}°/${Math.round(opts.weather.low)}°]` : '';
+  console.log(`${out}: ${c.name} — ${c.note}${c.rare ? ' (rare catch!)' : ''}${wx}`);
 } else if (cmd === 'names') {
   for (const c of catchesFrom(when(), Number(o.count ?? 24), frameOpts())) {
     const hh = String(c.at.getHours()).padStart(2, '0');
@@ -114,6 +141,7 @@ if (cmd === 'render') {
   const clock = await runClock({
     ...DEFAULTS, ...f, width: f.width, height: f.height,
     driver: o.driver, update: o.update, out: o.out ?? 'frame.png', exec: o.exec, python: o.python,
+    weatherService: weatherService(),
   }).catch((err) => die(err.message));
   for (const sig of ['SIGINT', 'SIGTERM']) {
     process.on(sig, async () => {
@@ -123,7 +151,7 @@ if (cmd === 'render') {
   }
 } else if (cmd === 'serve') {
   const port = Number(o.port ?? 8080);
-  await startServer({ port, host: o.host, defaults: frameOpts() });
+  await startServer({ port, host: o.host, defaults: frameOpts(), weather: weatherService() });
   console.log(`fish-fodder simulator on http://localhost:${port}  (frame at /frame.png)`);
 } else {
   die(`unknown command ${cmd} (try --help)`);

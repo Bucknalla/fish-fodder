@@ -1,5 +1,6 @@
-// A small HTTP server: the simulator, plus /frame.png for anything that wants
-// to fetch the current frame (handy for ESP32-style frames that poll a URL).
+// A small HTTP server: the simulator, /weather.json for its live forecast, and
+// /frame.png for anything that wants to fetch the current frame (handy for
+// ESP32-style frames that poll a URL).
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -21,7 +22,7 @@ function frameOptions(params) {
   return opts;
 }
 
-export function startServer({ port = 8080, host = '0.0.0.0', defaults = {} } = {}) {
+export function startServer({ port = 8080, host = '0.0.0.0', defaults = {}, weather = null } = {}) {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     try {
@@ -31,9 +32,18 @@ export function startServer({ port = 8080, host = '0.0.0.0', defaults = {} } = {
           res.writeHead(400, { 'content-type': 'text/plain' });
           return res.end('bad ?at= date');
         }
-        const { bitmap, catch: c } = renderFrame(at, { ...defaults, ...frameOptions(url.searchParams) });
+        const forecast = weather && url.searchParams.get('weather') !== 'none' ? await weather.forecast(at) : null;
+        const { bitmap, catch: c } = renderFrame(at, { ...defaults, ...frameOptions(url.searchParams), weather: forecast });
         res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store', 'x-fish-name': c.name });
         return res.end(encodePNG(bitmap));
+      }
+      // The forecast for the simulator: { weather, place } (weather is null
+      // when it's off or unavailable).
+      if (url.pathname === '/weather.json') {
+        const at = url.searchParams.has('at') ? new Date(url.searchParams.get('at')) : new Date();
+        const forecast = weather && !Number.isNaN(at.getTime()) ? await weather.forecast(at) : null;
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        return res.end(JSON.stringify({ weather: forecast, place: weather?.place()?.name ?? null }));
       }
       if (url.pathname === '/') {
         res.writeHead(302, { location: '/simulator/' });

@@ -14,6 +14,16 @@ const cache = new Map();
 function glyph(font, ch) {
   const key = `${font === ROMAN_DUPLEX ? 'd' : 's'}${ch}`;
   if (cache.has(key)) return cache.get(key);
+  if (ch === '°') {
+    // Not in the ASCII Hershey set: a small circle at cap height.
+    const strokes = [Array.from({ length: 17 }, (_, i) => {
+      const a = (i / 16) * Math.PI * 2;
+      return [4 + 3 * Math.cos(a), -18 + 3 * Math.sin(a)];
+    })];
+    const g = { advance: 9, strokes };
+    cache.set(key, g);
+    return g;
+  }
   const code = ch.charCodeAt(0);
   const entry = font[code - 32] ?? font['?'.charCodeAt(0) - 32];
   const left = entry.charCodeAt(3) - ORD_R;

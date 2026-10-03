@@ -5,6 +5,7 @@ import { draw_fish } from './vendor/fishdraw.js';
 import { Bitmap } from './raster.js';
 import { measureText, textPolylines } from './text.js';
 import { catchFor } from './schedule.js';
+import { weatherIcon } from './weather.js';
 
 // Common panels. Any width/height works; these are just handy.
 export const PRESETS = {
@@ -24,6 +25,7 @@ export const DEFAULTS = {
   rotate: 0, // degrees clockwise, for frames mounted portrait or upside down
   clock: '24h', // or '12h'
   precision: 'minute', // or 'hour' for panels that only refresh hourly
+  weather: null, // today's forecast: { kind, high, low } (see weather.js)
   salt: '',
 };
 
@@ -111,14 +113,39 @@ export function renderFrame(date, options = {}) {
   const headStroke = Math.max(1.5, headSize / 14);
   const headY = m + headSize;
   bmp.stroke(textPolylines(time, { x: m, y: headY, font, size: headSize }), headStroke);
+  let timeRight = m + measureText(time, { font, size: headSize });
   if (suffix) {
     const s = headSize * suffixScale;
-    const x = m + measureText(time, { font, size: headSize }) + s * 0.3;
-    bmp.stroke(textPolylines(suffix, { x, y: headY, size: s }), Math.max(1, s / 10));
+    bmp.stroke(textPolylines(suffix, { x: timeRight + s * 0.3, y: headY, size: s }), Math.max(1, s / 10));
+    timeRight += s * 0.3 + measureText(suffix, { size: s });
   }
   const dateText = shortDate(date);
   const dateW = measureText(dateText, { font, size: headSize });
   bmp.stroke(textPolylines(dateText, { x: W - m - dateW, y: headY, font, size: headSize }), headStroke);
+
+  // Today's weather, centred between them: an icon and the high/low, or just
+  // the icon where the numbers would be too small to read.
+  if (opts.weather) {
+    const { kind, high, low } = opts.weather;
+    const temps = `${Math.round(high)}°/${Math.round(low)}°`;
+    const iconK = 1.6; // icon square, in cap heights
+    const iconGap = 0.25;
+    const from = timeRight + headSize * 0.8;
+    const room = W - m - dateW - headSize * 0.8 - from;
+    const fullW = iconK + iconGap + measureText(temps, { font, size: 1 });
+    let ws = Math.min(headSize * 0.75, room / fullW);
+    let showTemps = ws >= Math.max(9, headSize * 0.5);
+    if (!showTemps) ws = Math.min(headSize * 0.75, room / iconK);
+    if (ws >= 6) {
+      const x = from + (room - ws * (showTemps ? fullW : iconK)) / 2;
+      const iconSize = ws * iconK;
+      // Centre the icon on the text's cap height.
+      bmp.stroke(weatherIcon(kind, { x, y: headY - ws / 2 - iconSize / 2, size: iconSize }), Math.max(1, ws / 13));
+      if (showTemps) {
+        bmp.stroke(textPolylines(temps, { x: x + ws * (iconK + iconGap), y: headY, font, size: ws }), Math.max(1.2, ws / 14));
+      }
+    }
+  }
 
   // The rule under the header; a rare catch gets a badge hanging from it.
   const ruleY = headY + headSize * DESCENT + m * 0.4;

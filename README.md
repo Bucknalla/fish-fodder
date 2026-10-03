@@ -7,10 +7,11 @@ name (*Lesser Spotted Disco Haddock*, *Captain Brenda Barnaclewick*,
 *Wobblichthys bewilderus*), and the name is the seed for
 [fishdraw](https://github.com/LingDong-/fishdraw), so the same name always
 draws the same fish. About one hour in twenty-five lands a rare catch.
+The header also shows today's weather forecast.
 
 ```
 ┌──────────────────────────────────────────────┐
-│ 14:37                              Sat 3 Oct │
+│ 14:37         (rain) 14°/8°        Sat 3 Oct │
 │ ──────────────────────────────────────────── │
 │                   (a fish)                   │
 │                                              │
@@ -93,7 +94,32 @@ shows the hour the fish arrived (`14:00`).
 - `--driver exec --exec "my-display-tool {path} {mode}"` writes the PNG and runs
   a command. `{mode}` is `full` or `partial`.
 - `fish-fodder serve` also serves `/frame.png` (with optional `?width=`, `?height=`,
-  `?clock=12h`, `?salt=`, `?at=`), for ESP32-style frames that fetch an image.
+  `?clock=12h`, `?salt=`, `?at=`, `?weather=none`), for ESP32-style frames that
+  fetch an image.
+
+### Weather
+
+The header shows today's forecast as a small icon (sun, partly cloudy, cloud,
+fog, drizzle, rain, snow or thunderstorm) and the high/low temperature. It
+comes from [Open-Meteo](https://open-meteo.com), which is free and needs no
+API key. The forecast is fetched with each new fish, so about once an hour.
+
+A Pi has no GPS, so by default the location is estimated from the network's
+IP address (via ipinfo.io), which can be off by a city or more. The place it
+picked is logged on start-up. To set it yourself:
+
+```sh
+node bin/fish-fodder.js run --driver waveshare:epd7in5_V2 --location "Bristol"
+node bin/fish-fodder.js run --driver inky --location "Portland, US" --units f
+node bin/fish-fodder.js run --driver inky --coords 51.45,-2.59
+```
+
+If the forecast can't be fetched, the frame keeps the last one for that day or
+leaves the weather out, and the reason is logged. `--no-weather` turns it off.
+
+In the simulator, choose *Live forecast* to see what the frame would show
+(this needs `npm run sim`), or a sample to see each icon. The single-file
+simulator only has the samples.
 
 ### Options
 
@@ -103,6 +129,7 @@ shows the hour the fish arrived (`14:00`).
 | `--rotate 90` | For frames hung in portrait, or upside down (`180`). |
 | `--clock 12h` | 12-hour clock with am/pm. |
 | `--salt kitchen` | A different fish schedule, so two frames don't match. |
+| `--location`, `--coords`, `--units f`, `--no-weather` | See [Weather](#weather). |
 
 ## How it works
 
@@ -117,6 +144,8 @@ shows the hour the fish arrived (`14:00`).
   every draw matches `node fishdraw.js --seed "<name>"`.
 - `src/render.js` lays out the frame and rasterises it straight to 1 bit, with
   lettering in the Hershey stroke fonts to match fishdraw's plotter style.
+- `src/weather.js` maps forecast codes to kinds of sky and draws their icons;
+  `src/node/weather.js` finds the location and fetches the forecast.
 - `src/node/` holds the PNG encoder, clock loop, display backends and server.
   `hardware/epd_bridge.py` pushes frames to the panel.
 
@@ -128,6 +157,8 @@ npm test
 
 - Fish drawings: [fishdraw](https://github.com/LingDong-/fishdraw) by Lingdong
   Huang, MIT licence (`src/vendor/LICENSE-fishdraw`).
+- Weather: [Open-Meteo](https://open-meteo.com) (CC BY 4.0); location estimate
+  from [ipinfo.io](https://ipinfo.io).
 - Lettering: the Hershey Fonts were originally created by Dr. A. V. Hershey
   while working at the U. S. National Bureau of Standards. The format of the
   font data was originally created by James Hurt, Cognition, Inc.

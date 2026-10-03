@@ -174,6 +174,7 @@ a { color: var(--accent); text-underline-offset: 0.15em; }
         <span id="s-refresh">Full refresh</span>
         <span>Next fish in <b id="s-next">–</b></span>
         <span id="s-panel"></span>
+        <span id="s-weather"></span>
       </div>
     </div>
 
@@ -215,6 +216,16 @@ a { color: var(--accent); text-underline-offset: 0.15em; }
       </fieldset>
 
       <fieldset>
+        <legend>Weather</legend>
+        <select id="w-mode" aria-label="Weather"></select>
+        <div class="seg" role="group" aria-label="Temperature units">
+          <button type="button" id="w-c" aria-pressed="true">°C</button>
+          <button type="button" id="w-f" aria-pressed="false">°F</button>
+        </div>
+        <p class="hint" id="w-hint">The frame shows today's forecast for its location.</p>
+      </fieldset>
+
+      <fieldset>
         <legend>Frame ID</legend>
         <input type="text" id="f-salt" placeholder="optional, e.g. kitchen" aria-label="Frame ID">
         <p class="hint">Two frames with different IDs catch different fish.</p>
@@ -232,6 +243,7 @@ a { color: var(--accent); text-underline-offset: 0.15em; }
 
   <footer>
     Fish drawings by <a href="https://github.com/LingDong-/fishdraw" target="_blank" rel="noopener">fishdraw</a> © Lingdong Huang (MIT).
+    Weather from <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>.
     Lettering in the Hershey fonts, created by Dr. A. V. Hershey at the U.S. National Bureau of Standards.
   </footer>
 </div>
