@@ -6,7 +6,6 @@ import { hourKey, startOfHour, catchesFrom } from '../src/schedule.js';
 
 const HOUR = 3600_000;
 const FF_INTERVAL = 4000;
-const STANDALONE = typeof __STANDALONE__ !== 'undefined' && __STANDALONE__; // set by the single-file build
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 const $ = (id) => document.getElementById(id);
@@ -243,19 +242,6 @@ $('u-min').addEventListener('click', () => setting('update', 'minute'));
 $('u-hour').addEventListener('click', () => setting('update', 'hour'));
 $('f-salt').addEventListener('change', (e) => setting('salt', e.target.value.trim()));
 $('controls').addEventListener('submit', (e) => e.preventDefault());
-
-if (!STANDALONE) {
-  $('save').hidden = false;
-  $('save').addEventListener('click', () => {
-    canvas.toBlob((blob) => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `fish-fodder-${hourKey(simNow())}.png`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    });
-  });
-}
 
 syncButtons();
 fitCanvas(size());

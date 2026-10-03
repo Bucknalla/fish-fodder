@@ -16,12 +16,14 @@ const { outputFiles } = await build({
   minify: true,
   format: 'iife',
   write: false,
-  define: { __STANDALONE__: 'true' },
 });
 const js = outputFiles[0].text.replaceAll('</script', '<\\/script');
 
 let html = await readFile(`${root}simulator/index.html`, 'utf8');
-html = html.replace('<script type="module" src="app.js"></script>', () => `<script>${js}</script>`);
+html = html
+  .replace('<script type="module" src="app.js"></script>', () => `<script>${js}</script>`)
+  // Saving goes through the local server's page only; drop it from the bundle.
+  .replace(/\s*<script type="module" src="save.js"><\/script>/, '');
 if (fragment) {
   html = html
     .replace(/<!doctype html>\s*<html[^>]*>\s*<head>\s*/i, '')
