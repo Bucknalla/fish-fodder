@@ -1,10 +1,11 @@
 // fish-fodder on an ESP32-S3: the clock, today's weather and the hour's fish
-// on a Waveshare 7.5" e-paper panel. The frame comes from the C port in c/,
+// on an e-paper panel (Waveshare 7.5" V2 or Inky Impression 7.3"). The frame comes from the C port in c/,
 // identical to what the Node app and simulator draw.
 //
 // Two ways to run (menuconfig, "Fish Fodder"):
 // - every minute: stays awake on USB power, partial refresh each minute and
-//   a full refresh when the new fish arrives on the hour;
+//   a full refresh when the new fish arrives on the hour (panels without
+//   partial refresh, like the Inkys, update hourly instead);
 // - hourly: wakes on the hour, shows HH:00 and the new fish, deep-sleeps.
 
 #include <stdlib.h>
@@ -12,7 +13,6 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "epd.h"
 #include "esp_attr.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
@@ -26,6 +26,7 @@
 #include "freertos/task.h"
 #include "net.h"
 #include "nvs_flash.h"
+#include "panel.h"
 #include "sdkconfig.h"
 
 static const char *TAG = "fish-fodder";
@@ -56,7 +57,9 @@ static RTC_DATA_ATTR struct {
   forecast fc;
 } st;
 
+static epd *screen;
 static uint8_t *frame;
+static int minute_clock; // update every minute (else hourly, showing HH:00)
 
 static void *psram_alloc(size_t n) { return heap_caps_malloc(n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT); }
 
@@ -121,11 +124,11 @@ static void show(int partial, char *key, size_t key_size) {
   if (have_weather) w = (ff_weather){ff_sky_for_code(st.fc.code), st.fc.high, st.fc.low};
 
   ff_options opts = {
-      .width = EPD_WIDTH,
-      .height = EPD_HEIGHT,
+      .width = screen->driver->width,
+      .height = screen->driver->height,
       .rotate = CONFIG_FF_ROTATE,
       .clock_12h = CLOCK_12H,
-      .hourly = HOURLY,
+      .hourly = !minute_clock,
       .salt = CONFIG_FF_FRAME_ID,
       .weather = have_weather ? &w : NULL,
   };
@@ -137,9 +140,9 @@ static void show(int partial, char *key, size_t key_size) {
     return;
   }
   int64_t t1 = esp_timer_get_time();
-  epd_pack(bmp.pixels, frame);
+  epd_pack(bmp.pixels, bmp.width, bmp.height, frame);
   ff_bitmap_free(&bmp);
-  epd_show(frame, partial);
+  epd_show(screen, frame, partial);
   ESP_LOGI(TAG, "%02d:%02d %s%s: drawn in %lld ms, shown in %lld ms", t.hour, t.minute, c.name,
            c.rare ? " (rare!)" : "", (long long)(t1 - t0) / 1000, (long long)(esp_timer_get_time() - t1) / 1000);
   snprintf(key, key_size, "%s", c.key);
@@ -170,7 +173,7 @@ static void every_minute(void) {
     int new_hour = strcmp(c.key, key) != 0;
     if (new_hour && !fresh && net_connect(20000) == 0) update_forecast();
     fresh = 0;
-    show(!new_hour, key, sizeof key);
+    if (new_hour || minute_clock) show(!new_hour, key, sizeof key);
 
     // Sleep until just after the next minute starts.
     struct timeval tv;
@@ -188,6 +191,7 @@ static void hourly(void) {
   if (clock_set()) {
     char key[32];
     show(0, key, sizeof key);
+    epd_sleep(screen);
   } else {
     ESP_LOGW(TAG, "no time yet; trying again in 5 minutes");
   }
@@ -257,8 +261,10 @@ void app_main(void) {
     setenv("TZ", CONFIG_FF_TIMEZONE, 1);
     tzset();
   }
-  frame = heap_caps_malloc(EPD_BYTES, MALLOC_CAP_8BIT);
-  epd_init();
+  screen = panel_init();
+  minute_clock = !HOURLY && screen->driver->partial;
+  frame = heap_caps_malloc((size_t)(screen->driver->width + 7) / 8 * screen->driver->height, MALLOC_CAP_8BIT);
+  ESP_LOGI(TAG, "panel: %s%s", screen->driver->name, minute_clock ? "" : ", updating hourly");
   // fishdraw recurses and works in doubles: give it a roomy stack, on the
   // second core so Wi-Fi keeps running while a fish is drawn.
   xTaskCreatePinnedToCore(clock_task, "clock", 64 * 1024, NULL, 5, NULL, 1);

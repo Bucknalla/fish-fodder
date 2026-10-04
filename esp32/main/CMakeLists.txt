@@ -1,9 +1,10 @@
-# The renderer is shared with the desktop build in ../../c.
+# The renderer and panel drivers are shared with the desktop and Pi builds
+# in ../../c.
 set(ff ${CMAKE_CURRENT_LIST_DIR}/../../c)
 
 idf_component_register(
-  SRCS main.c epd.c net.c forecast.c ${ff}/fishfodder.c ${ff}/fishdraw.c ${ff}/fdlibm.c
-  INCLUDE_DIRS . ${ff}
+  SRCS main.c panel.c net.c forecast.c ${ff}/fishfodder.c ${ff}/fishdraw.c ${ff}/fdlibm.c ${ff}/epd/epd.c
+  INCLUDE_DIRS . ${ff} ${ff}/epd
   PRIV_REQUIRES esp_driver_spi esp_driver_gpio esp_wifi esp_netif esp_event esp_http_client
                 esp_timer mbedtls nvs_flash)
 

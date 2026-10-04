@@ -8,6 +8,20 @@ menu "Fish Fodder"
         string "Wi-Fi password"
         default ""
 
+    choice FF_PANEL
+        prompt "Panel"
+        default FF_PANEL_WAVESHARE_7IN5_V2
+        help
+            The Inky panels have no partial refresh, so they update hourly.
+
+        config FF_PANEL_WAVESHARE_7IN5_V2
+            bool "Waveshare 7.5\" e-Paper V2 (800x480)"
+        config FF_PANEL_INKY_E673
+            bool "Inky Impression 7.3\" (Spectra 6, 2025)"
+        config FF_PANEL_INKY_AC073TC1A
+            bool "Inky Impression 7.3\" (7-colour, 2023)"
+    endchoice
+
     choice FF_UPDATES
         prompt "Updates"
         default FF_UPDATE_MINUTE
@@ -61,6 +75,10 @@ menu "Fish Fodder"
         default ""
 
     menu "Panel pins"
+        # Defaults suit a Waveshare driver board wired to an ESP32-S3-DevKitC.
+        # For an Inky on a board with a Raspberry Pi header, use the GPIOs on
+        # header pins 23 (SCK), 19 (MOSI), 24 (CS), 15 (DC), 13 (RST) and
+        # 11 (BUSY), and PWR -1.
         config FF_PIN_SCK
             int "SCK (CLK)"
             range 0 48
@@ -86,7 +104,7 @@ menu "Fish Fodder"
             range 0 48
             default 7
         config FF_PIN_PWR
-            int "PWR (-1 if the board has none)"
+            int "PWR (-1 if the board has none, as on Inkys)"
             range -1 48
             default 6
             help

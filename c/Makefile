@@ -13,7 +13,10 @@ BUILD := build
 
 FISHDRAW := fishdraw.c fdlibm.c
 
-all: $(BUILD)/fishdraw_cli $(BUILD)/frame_cli
+all: $(BUILD)/fishdraw_cli $(BUILD)/frame_cli $(BUILD)/epd_trace
+
+# The e-paper tool for a Raspberry Pi (Linux only): `make epd`.
+epd: $(BUILD)/epd
 
 $(BUILD)/fishdraw_cli: fishdraw_cli.c $(FISHDRAW) fishdraw.h fdlibm.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ fishdraw_cli.c $(FISHDRAW) -lm
@@ -21,10 +24,16 @@ $(BUILD)/fishdraw_cli: fishdraw_cli.c $(FISHDRAW) fishdraw.h fdlibm.h | $(BUILD)
 $(BUILD)/frame_cli: frame_cli.c fishfodder.c $(FISHDRAW) fishfodder.h fishfodder_data.h fishdraw.h fdlibm.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ frame_cli.c fishfodder.c $(FISHDRAW) -lm
 
+$(BUILD)/epd_trace: epd/epd_trace.c epd/epd.c epd/epd.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ epd/epd_trace.c epd/epd.c
+
+$(BUILD)/epd: pi/epd_cli.c pi/epd_linux.c pi/epd_linux.h epd/epd.c epd/epd.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ pi/epd_cli.c pi/epd_linux.c epd/epd.c
+
 $(BUILD):
 	mkdir -p $(BUILD)
 
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: all clean
+.PHONY: all clean epd

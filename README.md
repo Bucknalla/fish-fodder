@@ -147,7 +147,7 @@ You need:
   such as the ESP32-S3-DevKitC-1-N8R8. Drawing a fish takes up to 4.2 MB, so
   boards with 2 MB of PSRAM (or none) won't do;
 - a Waveshare 7.5" e-Paper V2 (800 × 480, black and white) with its driver
-  board;
+  board, or a Pimoroni Inky Impression 7.3" (choose it in menuconfig);
 - [ESP-IDF](https://docs.espressif.com/projects/esp-idf/) 5.3 or later.
 
 Wiring (the defaults; change them in menuconfig):
@@ -175,7 +175,8 @@ There are two ways to run it:
 
 - **Every minute** (the default) stays awake on USB power. The clock updates
   with a partial refresh each minute, and the panel does a full refresh when
-  the new fish arrives on the hour.
+  the new fish arrives on the hour. The Inkys have no partial refresh, so
+  they update hourly.
 - **Hourly** wakes on the hour, shows `HH:00` and the new fish, then
   deep-sleeps, for a frame on a battery.
 
@@ -190,11 +191,38 @@ bit for bit, and how long it took:
 I (2345) fish-fodder: self-check: "Biggus fishus" matches the JavaScript exactly (… ms, … KB working memory)
 ```
 
-Status: the app compiles against ESP-IDF 5.4's headers, and the renderer
-draws the same fish and frames as the JavaScript on an emulated Xtensa CPU.
-It hasn't run on a real board yet. The panel driver follows Waveshare's own
-command sequences. The partial refresh is the part most likely to need
-adjusting.
+Status: the app compiles against ESP-IDF 5.4's headers, the renderer draws
+the same fish and frames as the JavaScript on an emulated Xtensa CPU, and the
+panel drivers send the same bytes as the vendors' own (see below). It hasn't
+run on a real board yet.
+
+## E-paper drivers in C
+
+`c/epd/` drives the panels in portable C: the Waveshare 7.5" V2 and both
+Inky Impression 7.3" panels (the 2023 7-colour and the 2025 Spectra 6). Each
+driver sends exactly what its vendor's driver sends, command for command:
+`npm test` runs both against fake hardware and compares every SPI byte, pin
+change and delay (the vendor drivers are kept in `test/epd-vendor/`). A
+platform supplies five functions: SPI write, set a pin, read BUSY, delay.
+
+On a Raspberry Pi (any model), `c/pi/` provides those through Linux's spidev,
+GPIO and I2C devices with no libraries, and `make -C c epd` builds a tool:
+
+```sh
+c/build/epd info                      # which panel is fitted
+c/build/frame_cli -o frame.pbm        # draw this hour's frame
+c/build/epd show frame.pbm            # full refresh, then the panel sleeps
+c/build/epd show frame.pbm --partial  # partial refresh (Waveshare)
+```
+
+It finds an Inky by its ID EEPROM (enable I2C with `raspi-config`) and
+otherwise assumes a Waveshare; `--panel` overrides. SPI must be enabled, and
+Inky boards need `dtoverlay=spi0-0cs` in `/boot/firmware/config.txt`, as
+Pimoroni's installer sets up. Like Pimoroni's, the Inky drivers use the pins
+of their HAT; Waveshare's use RST 17, DC 25, BUSY 24 and PWR 18.
+
+The drivers haven't run on real panels yet, but they say exactly what the
+vendor drivers that do say.
 
 ## In C, for microcontrollers
 
@@ -278,8 +306,9 @@ npm test
   Huang, MIT licence (`src/vendor/LICENSE-fishdraw`).
 - Maths: fdlibm, via [V8](https://v8.dev)'s `ieee754.cc` (BSD licence,
   `src/vendor/LICENSE-v8`, `c/LICENSE-v8`); originally Sun Microsystems.
-- E-paper commands: the ESP32 panel driver follows Waveshare's
-  [e-Paper](https://github.com/waveshareteam/e-Paper) driver (MIT licence).
+- E-paper drivers: `c/epd` follows Waveshare's
+  [e-Paper](https://github.com/waveshareteam/e-Paper) and Pimoroni's
+  [inky](https://github.com/pimoroni/inky) drivers (both MIT licence).
 - Weather: [Open-Meteo](https://open-meteo.com) (CC BY 4.0); location estimate
   from [ipinfo.io](https://ipinfo.io).
 - Lettering: the Hershey Fonts were originally created by Dr. A. V. Hershey
